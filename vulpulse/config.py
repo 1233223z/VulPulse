@@ -46,7 +46,7 @@ class Settings(BaseSettings):
     exploitdb_csv_url: str = (
         "https://gitlab.com/exploit-database/exploitdb/-/raw/main/files_exploits.csv"
     )
-    epss_api_url: str = "https://api.first.org/data/v1/epss"
+    epss_scores_url: str = "https://epss.cyentia.com/epss_scores-current.csv.gz"
 
     # HTTP client
     http_timeout_seconds: float = 30.0

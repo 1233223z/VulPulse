@@ -97,5 +97,34 @@ def crawl(
     )
 
 
+@app.command()
+def enrich(
+    source: str = typer.Option(
+        "epss",
+        "--source",
+        "-s",
+        help="Enricher name. Supported: epss.",
+    ),
+) -> None:
+    """Enrich existing vulnerabilities in place."""
+    import asyncio
+
+    from vulpulse.enrich.epss import EpssEnricher
+
+    if source != "epss":
+        typer.echo(f"Unsupported enricher: {source}", err=True)
+        raise typer.Exit(code=2)
+
+    async def _run():
+        enricher = EpssEnricher()
+        try:
+            return await enricher.enrich()
+        finally:
+            await enricher.close()
+
+    stats = asyncio.run(_run())
+    typer.echo(f"matched={stats.matched} updated={stats.updated}")
+
+
 if __name__ == "__main__":
     app()

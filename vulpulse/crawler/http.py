@@ -88,3 +88,7 @@ class HttpClient:
     async def get_text(self, url: str, **kwargs: Any) -> str:
         response = await self.request("GET", url, **kwargs)
         return response.text
+
+    async def get_bytes(self, url: str, **kwargs: Any) -> bytes:
+        response = await self.request("GET", url, **kwargs)
+        return response.content
