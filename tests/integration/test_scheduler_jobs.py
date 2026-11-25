@@ -14,7 +14,8 @@ from vulpulse.db.models import CrawlRun
 from vulpulse.db.session import Database
 from vulpulse.enrich.epss import EpssStats
 from vulpulse.ingest import IngestService, IngestStats
-from vulpulse.scheduler.jobs import run_crawl_job, run_epss_job
+from vulpulse.notifier.service import NotificationStats
+from vulpulse.scheduler.jobs import run_crawl_job, run_epss_job, run_notify_job
 
 
 class FakeSource(BaseSource):
@@ -132,3 +133,20 @@ async def test_run_epss_job_delegates_and_closes() -> None:
     assert stats.matched == 2
     assert stats.updated == 2
     assert closed == [True]
+
+
+async def test_run_notify_job_delegates() -> None:
+    class FakeService:
+        def __init__(self, *, database: Database | None, settings: Settings) -> None:
+            pass
+
+        async def run_cycle(self) -> NotificationStats:
+            return NotificationStats(matched=1, sent=1)
+
+    stats = await run_notify_job(
+        settings=Settings(_env_file=None),  # type: ignore[call-arg]
+        service_factory=FakeService,
+    )
+
+    assert stats.matched == 1
+    assert stats.sent == 1

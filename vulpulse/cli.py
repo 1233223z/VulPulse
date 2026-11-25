@@ -17,6 +17,11 @@ app = typer.Typer(
     no_args_is_help=True,
 )
 
+channel_app = typer.Typer(help="Manage notification channels.", no_args_is_help=True)
+subscription_app = typer.Typer(help="Manage alert subscriptions.", no_args_is_help=True)
+app.add_typer(channel_app, name="channel")
+app.add_typer(subscription_app, name="subscription")
+
 
 @app.callback()
 def main() -> None:
@@ -169,6 +174,272 @@ def worker(
 
     with contextlib.suppress(KeyboardInterrupt):
         asyncio.run(scheduler_worker.run_forever())
+
+
+@channel_app.command("add")
+def channel_add(
+    name: str = typer.Option(..., "--name"),
+    channel_type: str = typer.Option(..., "--type", help="wecom or email"),
+    config: str = typer.Option("{}", "--config", help="Advanced config as JSON"),
+    webhook_url: str | None = typer.Option(
+        None,
+        "--webhook-url",
+        help="WeCom robot webhook URL.",
+    ),
+    email_to: str | None = typer.Option(
+        None,
+        "--email-to",
+        help="Email recipient address.",
+    ),
+) -> None:
+    """Create a notification channel."""
+    import asyncio
+    import json
+
+    from vulpulse.db.repositories import ChannelRepository
+    from vulpulse.db.session import get_database
+
+    if channel_type not in {"wecom", "email"}:
+        typer.echo("Unsupported channel type. Use wecom or email.", err=True)
+        raise typer.Exit(code=2)
+
+    try:
+        parsed = json.loads(config or "{}")
+    except json.JSONDecodeError as exc:
+        typer.echo(f"Invalid JSON config: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    if not isinstance(parsed, dict):
+        typer.echo("Channel config must be a JSON object.", err=True)
+        raise typer.Exit(code=2)
+
+    if webhook_url:
+        parsed["webhook_url"] = webhook_url
+    if email_to:
+        parsed["to"] = [email_to]
+
+    if channel_type == "wecom" and not (
+        parsed.get("webhook_url") or get_settings().wecom_webhook_url
+    ):
+        typer.echo("WeCom requires --webhook-url or VULPULSE_WECOM_WEBHOOK_URL.", err=True)
+        raise typer.Exit(code=2)
+    if channel_type == "email" and not parsed.get("to"):
+        typer.echo("Email requires --email-to or config.to.", err=True)
+        raise typer.Exit(code=2)
+
+    async def _run():
+        async with get_database().session() as session:
+            repository = ChannelRepository(session)
+            if await repository.get_by_name(name) is not None:
+                return False
+            await repository.create(name, channel_type, parsed)
+            await session.commit()
+            return True
+
+    if not asyncio.run(_run()):
+        typer.echo(f"Channel already exists: {name}", err=True)
+        raise typer.Exit(code=1)
+    typer.echo(f"Created channel {name} ({channel_type})")
+
+
+@channel_app.command("list")
+def channel_list() -> None:
+    """List notification channels."""
+    import asyncio
+
+    from vulpulse.db.repositories import ChannelRepository
+    from vulpulse.db.session import get_database
+
+    async def _run():
+        async with get_database().session() as session:
+            return await ChannelRepository(session).list_all()
+
+    channels = asyncio.run(_run())
+    if not channels:
+        typer.echo("No channels configured.")
+        return
+    for channel in channels:
+        typer.echo(f"{channel.name}\t{channel.type}\tenabled={channel.enabled}")
+
+
+@subscription_app.command("add")
+def subscription_add(
+    name: str = typer.Option(..., "--name"),
+    channel: str = typer.Option(..., "--channel"),
+    rule: str = typer.Option("{}", "--rule", help="Advanced rule as JSON"),
+    severity: list[str] | None = typer.Option(None, "--severity"),
+    keyword: list[str] | None = typer.Option(None, "--keyword"),
+    vendor: list[str] | None = typer.Option(None, "--vendor"),
+    product: list[str] | None = typer.Option(None, "--product"),
+    source: list[str] | None = typer.Option(None, "--source"),
+    kev: bool | None = typer.Option(None, "--kev/--no-kev"),
+    exploit: bool | None = typer.Option(None, "--exploit/--no-exploit"),
+    cvss_min: float | None = typer.Option(None, "--cvss-min"),
+    epss_min: float | None = typer.Option(None, "--epss-min"),
+    within_days: int | None = typer.Option(None, "--within-days"),
+) -> None:
+    """Create an alert subscription."""
+    import asyncio
+    import json
+
+    from pydantic import ValidationError
+
+    from vulpulse.db.repositories import ChannelRepository, SubscriptionRepository
+    from vulpulse.db.session import get_database
+    from vulpulse.notifier.rules import SubscriptionRule
+
+    try:
+        rule_data = json.loads(rule or "{}")
+    except json.JSONDecodeError as exc:
+        typer.echo(f"Invalid rule JSON: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    if not isinstance(rule_data, dict):
+        typer.echo("Rule must be a JSON object.", err=True)
+        raise typer.Exit(code=2)
+
+    if severity:
+        rule_data["severities"] = severity
+    if keyword:
+        rule_data["keywords"] = keyword
+    if vendor:
+        rule_data["vendors"] = vendor
+    if product:
+        rule_data["products"] = product
+    if source:
+        rule_data["sources"] = source
+    if kev is not None:
+        rule_data["in_kev"] = kev
+    if exploit is not None:
+        rule_data["exploit_available"] = exploit
+    if cvss_min is not None:
+        rule_data["cvss_min"] = cvss_min
+    if epss_min is not None:
+        rule_data["epss_min"] = epss_min
+    if within_days is not None:
+        rule_data["published_within_days"] = within_days
+
+    try:
+        parsed = SubscriptionRule.model_validate(rule_data).model_dump()
+    except ValidationError as exc:
+        typer.echo(f"Invalid rule: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+
+    async def _run():
+        async with get_database().session() as session:
+            channel_model = await ChannelRepository(session).get_by_name(channel)
+            if channel_model is None:
+                return "channel_missing"
+            repository = SubscriptionRepository(session)
+            if await repository.get_by_name(name) is not None:
+                return "exists"
+            await repository.create(name, channel_model.id, parsed)
+            await session.commit()
+            return "ok"
+
+    result = asyncio.run(_run())
+    if result == "channel_missing":
+        typer.echo(f"Channel not found: {channel}", err=True)
+        raise typer.Exit(code=1)
+    if result == "exists":
+        typer.echo(f"Subscription already exists: {name}", err=True)
+        raise typer.Exit(code=1)
+    typer.echo(f"Created subscription {name} on channel {channel}")
+
+
+@subscription_app.command("list")
+def subscription_list() -> None:
+    """List alert subscriptions."""
+    import asyncio
+
+    from vulpulse.db.repositories import SubscriptionRepository
+    from vulpulse.db.session import get_database
+
+    async def _run():
+        async with get_database().session() as session:
+            return await SubscriptionRepository(session).list_all()
+
+    subscriptions = asyncio.run(_run())
+    if not subscriptions:
+        typer.echo("No subscriptions configured.")
+        return
+    for subscription in subscriptions:
+        channel_name = subscription.channel.name if subscription.channel else "?"
+        typer.echo(
+            f"{subscription.name}\tchannel={channel_name}\t"
+            f"enabled={subscription.enabled}\trule={subscription.rule_json}"
+        )
+
+
+@app.command()
+def notify(
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="Match subscriptions without creating deliveries or sending.",
+    ),
+) -> None:
+    """Run one notification cycle."""
+    import asyncio
+
+    from vulpulse.notifier.service import NotificationService
+
+    async def _run():
+        return await NotificationService().run_cycle(dry_run=dry_run)
+
+    stats = asyncio.run(_run())
+    typer.echo(
+        f"subscriptions={stats.subscriptions} matched={stats.matched} "
+        f"created={stats.created} sent={stats.sent} failed={stats.failed} "
+        f"dry_run={stats.dry_run}"
+    )
+
+
+@app.command("notify-test")
+def notify_test(
+    channel: str = typer.Option(..., "--channel", "-c"),
+) -> None:
+    """Send a test message through a configured channel."""
+    import asyncio
+
+    from vulpulse.db.repositories import ChannelRepository
+    from vulpulse.db.session import get_database
+    from vulpulse.notifier.base import NotificationMessage
+    from vulpulse.notifier.factory import build_channel
+
+    settings = get_settings()
+
+    async def _run():
+        async with get_database().session() as session:
+            model = await ChannelRepository(session).get_by_name(channel)
+            if model is None:
+                return "missing"
+            sender = build_channel(model, settings)
+            try:
+                await sender.send(
+                    NotificationMessage(
+                        subject="[VulPulse] test notification",
+                        text="VulPulse test notification. If you see this, the channel works.",
+                        markdown=(
+                            "## VulPulse test\n"
+                            "If you see this, the channel works.\n\n"
+                            f"[Open VulPulse]({settings.public_base_url})"
+                        ),
+                        url=settings.public_base_url,
+                    )
+                )
+            finally:
+                await sender.close()
+            return "ok"
+
+    try:
+        result = asyncio.run(_run())
+    except Exception as exc:
+        typer.echo(f"Failed to send test notification: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+
+    if result == "missing":
+        typer.echo(f"Channel not found: {channel}", err=True)
+        raise typer.Exit(code=1)
+    typer.echo(f"Test notification sent through {channel}")
 
 
 if __name__ == "__main__":

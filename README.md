@@ -84,7 +84,7 @@ so multiple API workers can never trigger duplicate crawls.
 | **M6** | Scheduler worker and crawl run history | ✅ |
 | **M7** | REST API: vulnerabilities, statistics, sources | ✅ |
 | **M8** | Web dashboard | ✅ |
-| **M9** | Subscription rules and WeCom / email alerts | 🗓 |
+| **M9** | Subscription rules and WeCom / email alerts | ✅ |
 | **M10** | Docker packaging, demo data, `v0.1.0` release | 🗓 |
 
 Phase 2 adds a configurable 0–100 risk score, vendor/product correlation,
@@ -185,11 +185,47 @@ vulpulse worker
 | `crawl:cisa_kev` | 6 h | Full KEV feed sync |
 | `crawl:exploitdb` | 24 h | Full Exploit-DB CSV sync |
 | `enrich:epss` | 24 h | Updates existing CVEs with EPSS scores |
+| `notify:alerts` | 5 min | Matches subscriptions and delivers alerts |
 
 Intervals are configurable through `VULPULSE_*` environment variables. Every
 run is recorded in `crawl_runs`; a failing source is logged and does not stop
 the scheduler. `vulpulse worker --once` runs all jobs once and exits, which is
 handy for Cron or a manual refresh.
+
+## Alerts
+
+Create a WeCom robot channel and a critical/KEV subscription:
+
+```bash
+vulpulse channel add --name wecom --type wecom \
+  --webhook-url "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=..."
+
+vulpulse subscription add --name critical-kev --channel wecom \
+  --severity critical --severity high --kev
+```
+
+Email uses the `VULPULSE_SMTP_*` settings:
+
+```bash
+vulpulse channel add --name email --type email --email-to security@example.com
+```
+
+Verify and run a cycle:
+
+```bash
+vulpulse notify-test --channel wecom   # one test message
+vulpulse notify --dry-run              # match only, no writes or sends
+vulpulse notify                        # create deliveries and send
+```
+
+Rules support `--severity`, `--keyword`, `--vendor`, `--product`, `--source`,
+`--kev/--no-kev`, `--exploit/--no-exploit`, `--cvss-min`, `--epss-min` and
+`--within-days`. Advanced rules can be passed as JSON with `--rule`.
+
+Deliveries are deduplicated per `(subscription, vulnerability, channel)`, so a
+CVE is never sent twice. Failed sends are retried up to
+`VULPULSE_NOTIFY_MAX_ATTEMPTS`; successful and failed attempts are visible in the
+`deliveries` table. The scheduler runs the `notify:alerts` job every 5 minutes.
 
 ## Configuration
 
@@ -205,6 +241,8 @@ variables or `.env`. See [`.env.example`](.env.example) for the full list.
 | `VULPULSE_NVD_API_KEY` | empty | Raises NVD rate limit from 5 to 50 req/30s |
 | `VULPULSE_WECOM_WEBHOOK_URL` | empty | WeCom alert channel |
 | `VULPULSE_SMTP_*` | empty | Email alert channel |
+| `VULPULSE_PUBLIC_BASE_URL` | `http://localhost:8000` | Base URL used in alert links |
+| `VULPULSE_NOTIFY_MAX_ATTEMPTS` | `3` | Delivery retry limit |
 
 Never commit `.env`.
 

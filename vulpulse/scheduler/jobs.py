@@ -13,13 +13,14 @@ from vulpulse.crawler.registry import create_source
 from vulpulse.db.session import Database
 from vulpulse.enrich.epss import EpssEnricher, EpssStats
 from vulpulse.ingest import IngestService, IngestStats
+from vulpulse.notifier.service import NotificationService, NotificationStats
 from vulpulse.timeutils import utcnow
 
 
 @dataclass(frozen=True)
 class JobSchedule:
     job_id: str
-    kind: Literal["crawl", "enrich"]
+    kind: Literal["crawl", "enrich", "notify"]
     target: str
     interval_seconds: int
     lookback_days: int = 0
@@ -56,6 +57,14 @@ def default_schedules(settings: Settings) -> list[JobSchedule]:
             target="epss",
             interval_seconds=settings.epss_interval_hours * 3600,
             run_on_start=settings.scheduler_run_on_start,
+        ),
+        JobSchedule(
+            job_id="notify:alerts",
+            kind="notify",
+            target="alerts",
+            interval_seconds=settings.notify_interval_minutes * 60,
+            # Do not send alerts on every worker restart.
+            run_on_start=False,
         ),
     ]
 
@@ -98,3 +107,13 @@ async def run_epss_job(
         return await enricher.enrich()
     finally:
         await enricher.close()
+
+
+async def run_notify_job(
+    *,
+    settings: Settings,
+    database: Database | None = None,
+    service_factory: Callable[..., NotificationService] = NotificationService,
+) -> NotificationStats:
+    service = service_factory(database=database, settings=settings)
+    return await service.run_cycle()

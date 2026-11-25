@@ -19,6 +19,7 @@ def test_default_schedules_follow_settings() -> None:
         exploitdb_interval_hours=12,
         epss_interval_hours=6,
         nvd_lookback_days=4,
+        notify_interval_minutes=10,
         scheduler_run_on_start=False,
     )
 
@@ -29,12 +30,15 @@ def test_default_schedules_follow_settings() -> None:
         "crawl:cisa_kev",
         "crawl:exploitdb",
         "enrich:epss",
+        "notify:alerts",
     }
     assert schedules["crawl:nvd"].interval_seconds == 30 * 60
     assert schedules["crawl:nvd"].lookback_days == 4
     assert schedules["crawl:cisa_kev"].interval_seconds == 3 * 3600
     assert schedules["crawl:exploitdb"].interval_seconds == 12 * 3600
     assert schedules["enrich:epss"].interval_seconds == 6 * 3600
+    assert schedules["notify:alerts"].interval_seconds == 10 * 60
+    assert schedules["notify:alerts"].run_on_start is False
     assert all(not schedule.run_on_start for schedule in schedules.values())
 
 
@@ -56,6 +60,7 @@ async def test_register_jobs(tmp_path) -> None:
             "crawl:cisa_kev",
             "crawl:exploitdb",
             "enrich:epss",
+            "notify:alerts",
         }
         trigger = jobs["crawl:nvd"].trigger
         assert isinstance(trigger, IntervalTrigger)
@@ -75,21 +80,26 @@ async def test_run_once_dispatches_both_job_kinds(tmp_path) -> None:
     async def fake_enrich(schedule: JobSchedule) -> None:
         calls.append(schedule.job_id)
 
+    async def fake_notify(schedule: JobSchedule) -> None:
+        calls.append(schedule.job_id)
+
     worker = SchedulerWorker(
         settings=settings,
         database=database,
         schedules=[],
         crawl_job=fake_crawl,
         enrich_job=fake_enrich,
+        notify_job=fake_notify,
     )
 
     try:
         await worker.run_once(JobSchedule("crawl:test", "crawl", "nvd", 60))
         await worker.run_once(JobSchedule("enrich:test", "enrich", "epss", 60))
+        await worker.run_once(JobSchedule("notify:test", "notify", "alerts", 60))
     finally:
         await database.dispose()
 
-    assert calls == ["crawl:test", "enrich:test"]
+    assert calls == ["crawl:test", "enrich:test", "notify:test"]
 
 
 async def test_job_failure_does_not_propagate(tmp_path) -> None:

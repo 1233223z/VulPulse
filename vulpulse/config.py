@@ -59,6 +59,12 @@ class Settings(BaseSettings):
     exploitdb_interval_hours: int = 24
     epss_interval_hours: int = 24
     nvd_lookback_days: int = 2
+    notify_interval_minutes: int = 5
+
+    # Notifications
+    notify_max_attempts: int = 3
+    notify_initial_lookback_days: int = 7
+    public_base_url: str = "http://localhost:8000"
 
     # Notifications
     wecom_webhook_url: str = ""
@@ -68,6 +74,7 @@ class Settings(BaseSettings):
     smtp_password: str = ""
     smtp_from: str = ""
     smtp_use_tls: bool = True
+    smtp_use_ssl: bool = False
 
     @field_validator("log_level")
     @classmethod
@@ -79,11 +86,14 @@ class Settings(BaseSettings):
         "kev_interval_hours",
         "exploitdb_interval_hours",
         "epss_interval_hours",
+        "notify_interval_minutes",
+        "notify_max_attempts",
+        "notify_initial_lookback_days",
     )
     @classmethod
     def _positive_interval(cls, value: int) -> int:
         if value <= 0:
-            raise ValueError("scheduler intervals must be positive")
+            raise ValueError("scheduler and notification values must be positive")
         return value
 
     @field_validator("nvd_lookback_days")

@@ -10,11 +10,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from vulpulse.db.models import (
+    Channel,
     CrawlRun,
     Cwe,
+    Delivery,
     Product,
     Source,
     SourceRecord,
+    Subscription,
     VulnCwe,
     Vulnerability,
     VulnProduct,
@@ -248,6 +251,24 @@ class VulnerabilityRepository:
         items = list((await self.session.scalars(statement)).all())
         return items, total
 
+    async def recent_for_alerts(self, since: datetime) -> list[Vulnerability]:
+        """Load recently published/updated vulnerabilities for rule matching."""
+        statement = (
+            select(Vulnerability)
+            .where(
+                or_(
+                    Vulnerability.published_at >= since,
+                    Vulnerability.modified_at >= since,
+                    Vulnerability.created_at >= since,
+                )
+            )
+            .options(
+                selectinload(Vulnerability.source_records).selectinload(SourceRecord.source),
+                selectinload(Vulnerability.product_links).selectinload(VulnProduct.product),
+            )
+        )
+        return list((await self.session.scalars(statement)).all())
+
     async def get_detail(self, identifier: str) -> Vulnerability | None:
         statement = select(Vulnerability).options(
             selectinload(Vulnerability.source_records).selectinload(SourceRecord.source),
@@ -344,6 +365,134 @@ class VulnerabilityRepository:
         self.session.add(created)
         await self.session.flush()
         return created
+
+
+class ChannelRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self.session = session
+
+    async def get_by_name(self, name: str) -> Channel | None:
+        return await self.session.scalar(select(Channel).where(Channel.name == name))
+
+    async def list_all(self) -> list[Channel]:
+        result = await self.session.scalars(select(Channel).order_by(Channel.name))
+        return list(result.all())
+
+    async def create(
+        self,
+        name: str,
+        type: str,
+        config: dict[str, Any] | None = None,
+        *,
+        enabled: bool = True,
+    ) -> Channel:
+        channel = Channel(name=name, type=type, config=config, enabled=enabled)
+        self.session.add(channel)
+        await self.session.flush()
+        return channel
+
+
+class SubscriptionRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self.session = session
+
+    async def get_by_name(self, name: str) -> Subscription | None:
+        return await self.session.scalar(select(Subscription).where(Subscription.name == name))
+
+    async def list_all(self) -> list[Subscription]:
+        statement = (
+            select(Subscription)
+            .options(selectinload(Subscription.channel))
+            .order_by(Subscription.id)
+        )
+        return list((await self.session.scalars(statement)).all())
+
+    async def list_enabled(self) -> list[Subscription]:
+        statement = (
+            select(Subscription)
+            .where(Subscription.enabled.is_(True))
+            .options(selectinload(Subscription.channel))
+            .order_by(Subscription.id)
+        )
+        return list((await self.session.scalars(statement)).all())
+
+    async def create(
+        self,
+        name: str,
+        channel_id: int,
+        rule_json: dict[str, Any],
+        *,
+        enabled: bool = True,
+    ) -> Subscription:
+        subscription = Subscription(
+            name=name,
+            channel_id=channel_id,
+            rule_json=rule_json,
+            enabled=enabled,
+        )
+        self.session.add(subscription)
+        await self.session.flush()
+        return subscription
+
+
+class DeliveryRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self.session = session
+
+    async def get_or_create(
+        self,
+        subscription: Subscription,
+        vulnerability: Vulnerability,
+        channel: Channel,
+    ) -> tuple[Delivery, bool]:
+        statement = select(Delivery).where(
+            Delivery.subscription_id == subscription.id,
+            Delivery.vuln_id == vulnerability.id,
+            Delivery.channel_id == channel.id,
+        )
+        existing = await self.session.scalar(statement)
+        if existing is not None:
+            return existing, False
+
+        delivery = Delivery(
+            subscription_id=subscription.id,
+            vuln_id=vulnerability.id,
+            channel_id=channel.id,
+            status="pending",
+        )
+        self.session.add(delivery)
+        await self.session.flush()
+        return delivery, True
+
+    async def list_actionable(
+        self,
+        subscription_id: int,
+        max_attempts: int,
+    ) -> list[Delivery]:
+        statement = (
+            select(Delivery)
+            .where(
+                Delivery.subscription_id == subscription_id,
+                Delivery.status.in_(("pending", "failed")),
+                Delivery.attempts < max_attempts,
+            )
+            .options(selectinload(Delivery.vulnerability))
+            .order_by(Delivery.id)
+        )
+        return list((await self.session.scalars(statement)).all())
+
+    async def mark_sent(self, delivery: Delivery) -> None:
+        delivery.status = "sent"
+        delivery.sent_at = utcnow()
+        delivery.attempts += 1
+        delivery.last_error = None
+        await self.session.flush()
+
+    async def mark_failed(self, delivery: Delivery, error: str) -> None:
+        delivery.status = "failed"
+        delivery.attempts += 1
+        delivery.last_error = error[:1000]
+        await self.session.flush()
 
 
 class CrawlRunRepository:

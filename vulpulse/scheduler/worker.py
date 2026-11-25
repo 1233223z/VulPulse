@@ -22,6 +22,7 @@ from vulpulse.scheduler.jobs import (
     default_schedules,
     run_crawl_job,
     run_epss_job,
+    run_notify_job,
 )
 
 JobCallable = Callable[[JobSchedule], Awaitable[Any]]
@@ -36,12 +37,14 @@ class SchedulerWorker:
         schedules: list[JobSchedule] | None = None,
         crawl_job: JobCallable | None = None,
         enrich_job: JobCallable | None = None,
+        notify_job: JobCallable | None = None,
     ) -> None:
         self.settings = settings or get_settings()
         self.database = database or get_database()
         self.schedules = schedules if schedules is not None else default_schedules(self.settings)
         self._crawl_job = crawl_job
         self._enrich_job = enrich_job
+        self._notify_job = notify_job
         self.scheduler = AsyncIOScheduler(timezone=timezone.utc)
 
     def register_jobs(self) -> None:
@@ -100,11 +103,20 @@ class SchedulerWorker:
                         lookback_days=schedule.lookback_days,
                     )
                 )
-            else:
+            elif schedule.kind == "enrich":
                 result = (
                     await self._enrich_job(schedule)
                     if self._enrich_job is not None
                     else await run_epss_job(
+                        settings=self.settings,
+                        database=self.database,
+                    )
+                )
+            else:
+                result = (
+                    await self._notify_job(schedule)
+                    if self._notify_job is not None
+                    else await run_notify_job(
                         settings=self.settings,
                         database=self.database,
                     )

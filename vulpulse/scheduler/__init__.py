@@ -5,6 +5,7 @@ from vulpulse.scheduler.jobs import (
     default_schedules,
     run_crawl_job,
     run_epss_job,
+    run_notify_job,
 )
 from vulpulse.scheduler.worker import SchedulerWorker
 
@@ -14,4 +15,5 @@ __all__ = [
     "default_schedules",
     "run_crawl_job",
     "run_epss_job",
+    "run_notify_job",
 ]

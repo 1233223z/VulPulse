@@ -231,6 +231,8 @@ class Delivery(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, nullable=False)
 
     subscription: Mapped[Subscription] = relationship(back_populates="deliveries")
+    vulnerability: Mapped[Vulnerability] = relationship()
+    channel: Mapped[Channel] = relationship()
 
 
 class CrawlRun(Base):
