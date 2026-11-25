@@ -69,6 +69,22 @@ def test_markdown_escapes_pipes_and_contains_links() -> None:
     assert "| CVE-2024-0001 |" not in markdown
 
 
+def test_markdown_escapes_identifier_and_quotes_url() -> None:
+    item = make_vuln(cve_id="CVE-2024-1) [x](https://evil.test)")
+
+    markdown = build_markdown(
+        [item],
+        ReportSummary.from_items([item], total=1),
+        "no filters",
+        datetime(2026, 11, 25, 14, 0),
+        "https://vulpulse.example",
+    )
+
+    assert "[x](https://evil.test)" not in markdown
+    assert "\\[x\\](https://evil.test)" in markdown
+    assert "CVE-2024-1%29" in markdown
+
+
 def test_html_escapes_untrusted_text() -> None:
     item = make_vuln(title="<script>alert(1)</script>")
 

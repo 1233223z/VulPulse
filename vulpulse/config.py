@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
@@ -38,6 +39,7 @@ class Settings(BaseSettings):
     api_key: str = ""
     session_secret: str = ""
     session_https_only: bool = False
+    session_max_age_hours: int = 8
 
     # Data sources
     nvd_api_key: str = ""
@@ -79,6 +81,7 @@ class Settings(BaseSettings):
 
     # Notifications
     wecom_webhook_url: str = ""
+    wecom_allowed_hosts: str = "qyapi.weixin.qq.com"
     smtp_host: str = ""
     smtp_port: int = 587
     smtp_username: str = ""
@@ -102,6 +105,7 @@ class Settings(BaseSettings):
         "notify_initial_lookback_days",
         "score_interval_hours",
         "risk_recency_days",
+        "session_max_age_hours",
     )
     @classmethod
     def _positive_interval(cls, value: int) -> int:
@@ -132,9 +136,13 @@ class Settings(BaseSettings):
         return value
 
     def ensure_dirs(self) -> None:
-        """Create runtime directories if they do not exist."""
-        self.data_dir.mkdir(parents=True, exist_ok=True)
-        self.log_dir.mkdir(parents=True, exist_ok=True)
+        """Create runtime directories with owner-only permissions."""
+        import os
+
+        for directory in (self.data_dir, self.log_dir):
+            directory.mkdir(parents=True, exist_ok=True, mode=0o700)
+            with contextlib.suppress(OSError):
+                os.chmod(directory, 0o700)
 
 
 @lru_cache

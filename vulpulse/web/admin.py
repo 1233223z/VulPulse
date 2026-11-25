@@ -14,6 +14,7 @@ from vulpulse.api.deps import get_session
 from vulpulse.config import get_settings
 from vulpulse.db.repositories import ChannelRepository, SubscriptionRepository
 from vulpulse.notifier.rules import SubscriptionRule
+from vulpulse.notifier.wecom import validate_webhook_url
 from vulpulse.web.admin_auth import (
     admin_redirect,
     clear_login_failures,
@@ -95,7 +96,10 @@ async def login_submit(request: Request) -> HTMLResponse | RedirectResponse:
             next_url=next_url,
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
-    if not secrets.compare_digest(api_key, settings.api_key):
+    if not secrets.compare_digest(
+        api_key.encode("utf-8"),
+        settings.api_key.encode("utf-8"),
+    ):
         record_login_failure(request)
         return _login_page(
             request,
@@ -105,7 +109,7 @@ async def login_submit(request: Request) -> HTMLResponse | RedirectResponse:
         )
 
     clear_login_failures(request)
-    login_admin(request)
+    login_admin(request, api_key)
     return RedirectResponse(next_url, status_code=303)
 
 
@@ -195,7 +199,14 @@ async def create_channel(
         if not url:
             error = "WeCom requires a webhook URL."
         else:
-            config = {"webhook_url": url}
+            try:
+                validate_webhook_url(
+                    url,
+                    get_settings().wecom_allowed_hosts,
+                )
+                config = {"webhook_url": url}
+            except ValueError as exc:
+                error = str(exc)
     elif not email_to:
         error = "Email requires a recipient."
     else:

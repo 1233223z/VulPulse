@@ -7,7 +7,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import quote, urlparse
 
 from vulpulse.analyzer.scorer import risk_level
 
@@ -95,7 +95,8 @@ def _identifier(vuln: Any) -> str:
 
 
 def _detail_url(vuln: Any, base_url: str) -> str:
-    return f"{base_url.rstrip('/')}/vulns/{_identifier(vuln)}"
+    identifier = quote(_identifier(vuln), safe="")
+    return f"{base_url.rstrip('/')}/vulns/{identifier}"
 
 
 def _summary_line(summary: ReportSummary) -> str:
@@ -136,7 +137,7 @@ def build_markdown(
     ]
 
     for vuln in items:
-        identifier = _identifier(vuln)
+        identifier = _md_escape(_identifier(vuln))
         title = _md_escape(vuln.title)
         sev = _md_escape(vuln.severity)
         level = _level(vuln)

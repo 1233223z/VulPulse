@@ -59,4 +59,7 @@ def setup_logging(level: str = "INFO", log_dir: Path | None = None) -> None:
         )
 
     logging.basicConfig(handlers=[_InterceptHandler()], level=0, force=True)
+    # httpx logs full request URLs at INFO, which can contain webhook keys.
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
     _CONFIGURED = True

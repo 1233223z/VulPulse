@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import httpx
 import pytest
 from httpx import AsyncClient
 
@@ -189,6 +190,22 @@ async def test_admin_is_disabled_without_key(client: AsyncClient) -> None:
     response = await client.post("/api/v1/admin/crawl", json={"source": "nvd"})
 
     assert response.status_code == 503
+
+
+async def test_admin_handles_non_ascii_api_key(
+    client: AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("VULPULSE_API_KEY", "secret")
+    get_settings.cache_clear()
+
+    response = await client.post(
+        "/api/v1/admin/crawl",
+        json={"source": "nvd"},
+        headers=httpx.Headers([(b"X-API-Key", b"\xe9")]),
+    )
+
+    assert response.status_code == 401
 
 
 async def test_admin_rejects_wrong_key(

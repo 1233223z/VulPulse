@@ -71,6 +71,36 @@ async def test_admin_login_rejects_wrong_key(
     assert response.status_code == 401
 
 
+async def test_admin_login_handles_non_ascii_key(
+    client: AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("VULPULSE_API_KEY", "test-key")
+    get_settings.cache_clear()
+
+    response = await client.post(
+        "/admin/login",
+        data={"api_key": "é"},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 401
+
+
+async def test_admin_session_is_invalidated_by_key_rotation(
+    client: AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    assert (await login(client, monkeypatch, key="key-one")).status_code == 303
+    assert (await client.get("/admin/subscriptions")).status_code == 200
+
+    monkeypatch.setenv("VULPULSE_API_KEY", "key-two")
+    get_settings.cache_clear()
+
+    response = await client.get("/admin/subscriptions", follow_redirects=False)
+    assert response.status_code == 303
+
+
 async def test_admin_login_is_rate_limited(
     client: AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
@@ -111,7 +141,7 @@ async def test_admin_channel_and_subscription_crud(
         data={
             "name": "wecom-ui",
             "channel_type": "wecom",
-            "webhook_url": "https://wecom.test/hook",
+            "webhook_url": "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=test",
             "csrf_token": token,
         },
         follow_redirects=False,
@@ -181,7 +211,7 @@ async def test_admin_rejects_missing_csrf(
         data={
             "name": "no-csrf",
             "channel_type": "wecom",
-            "webhook_url": "https://wecom.test/hook",
+            "webhook_url": "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=test",
         },
         follow_redirects=False,
     )

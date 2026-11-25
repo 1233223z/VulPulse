@@ -55,13 +55,17 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    if not settings.session_secret:
-        logger.warning("VULPULSE_SESSION_SECRET is not set; admin sessions reset on restart")
+    if settings.env == "prod":
+        if not settings.session_secret:
+            logger.warning("VULPULSE_SESSION_SECRET is not set; admin sessions reset on restart")
+        if not settings.session_https_only:
+            logger.warning("VULPULSE_SESSION_HTTPS_ONLY is false; set it when serving over HTTPS")
     application.add_middleware(
         SessionMiddleware,
         secret_key=settings.session_secret or secrets.token_urlsafe(32),
         same_site="lax",
         https_only=settings.session_https_only,
+        max_age=settings.session_max_age_hours * 3600,
     )
 
     application.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")

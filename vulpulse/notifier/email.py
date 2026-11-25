@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import smtplib
+import ssl
 from email.message import EmailMessage
 from typing import Any
 
@@ -34,11 +35,14 @@ class EmailChannel(NotificationChannel):
         email["To"] = ", ".join(self.recipients)
         email.set_content(message.text)
 
+        context = ssl.create_default_context()
+
         if settings.smtp_use_ssl:
             smtp: smtplib.SMTP = smtplib.SMTP_SSL(
                 settings.smtp_host,
                 settings.smtp_port,
                 timeout=20,
+                context=context,
             )
         else:
             smtp = smtplib.SMTP(
@@ -49,7 +53,7 @@ class EmailChannel(NotificationChannel):
 
         with smtp:
             if settings.smtp_use_tls and not settings.smtp_use_ssl:
-                smtp.starttls()
+                smtp.starttls(context=context)
             if settings.smtp_username:
                 smtp.login(settings.smtp_username, settings.smtp_password)
             smtp.send_message(email)

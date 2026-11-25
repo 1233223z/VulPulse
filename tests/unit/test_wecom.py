@@ -6,7 +6,7 @@ import httpx
 import pytest
 
 from vulpulse.notifier.base import NotificationMessage
-from vulpulse.notifier.wecom import WeComChannel
+from vulpulse.notifier.wecom import WeComChannel, validate_webhook_url
 
 MESSAGE = NotificationMessage(
     subject="subject",
@@ -14,6 +14,28 @@ MESSAGE = NotificationMessage(
     markdown="## VulPulse alert",
     url="https://example.test/vulns/CVE-2024-0001",
 )
+
+
+def test_webhook_url_requires_https_and_allowlisted_host() -> None:
+    validate_webhook_url(
+        "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=test",
+        "qyapi.weixin.qq.com",
+    )
+
+    with pytest.raises(ValueError, match="HTTPS"):
+        validate_webhook_url("http://qyapi.weixin.qq.com/hook", "qyapi.weixin.qq.com")
+    with pytest.raises(ValueError, match="not allowed"):
+        validate_webhook_url("https://evil.test/hook", "qyapi.weixin.qq.com")
+    with pytest.raises(ValueError, match="credentials"):
+        validate_webhook_url(
+            "https://user:pass@qyapi.weixin.qq.com/hook",
+            "qyapi.weixin.qq.com",
+        )
+
+
+def test_channel_rejects_non_https_url() -> None:
+    with pytest.raises(ValueError, match="HTTPS"):
+        WeComChannel("http://qyapi.weixin.qq.com/hook")
 
 
 async def test_send_posts_markdown_payload() -> None:
