@@ -1,0 +1,83 @@
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[project]
+name = "vulpulse"
+version = "0.1.0"
+description = "Open-source vulnerability intelligence platform: collect, normalize, score and alert on public vulnerability data."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "VulPulse Contributors" }]
+keywords = ["security", "vulnerability", "cve", "threat-intelligence", "osint"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Information Technology",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Security",
+]
+dependencies = [
+    "fastapi>=0.115,<1.0",
+    "uvicorn[standard]>=0.30,<1.0",
+    "sqlalchemy[asyncio]>=2.0.30,<3.0",
+    "aiosqlite>=0.20,<1.0",
+    "alembic>=1.13,<2.0",
+    "httpx>=0.27,<1.0",
+    "pydantic>=2.7,<3.0",
+    "pydantic-settings>=2.3,<3.0",
+    "loguru>=0.7,<1.0",
+    "apscheduler>=3.10,<4.0",
+    "typer>=0.12,<1.0",
+    "jinja2>=3.1,<4.0",
+    "tenacity>=9.0,<10.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.2,<9.0",
+    "pytest-asyncio>=1.0,<2.0",
+    "pytest-cov>=5.0,<7.0",
+    "respx>=0.21,<1.0",
+    "ruff>=0.5,<1.0",
+    "mypy>=1.10,<2.0",
+    "pre-commit>=3.7,<5.0",
+]
+
+[project.scripts]
+vulpulse = "vulpulse.cli:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["vulpulse"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+src = ["vulpulse", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "RUF"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["vulpulse"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+asyncio_mode = "auto"
+
+[tool.coverage.run]
+source = ["vulpulse"]
+branch = true
+
+[tool.mypy]
+python_version = "3.10"
+ignore_missing_imports = true
+warn_unused_ignores = true
+warn_redundant_casts = true
