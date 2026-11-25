@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% from "macros.html" import display_title, severity_badge, flags, score %}
+
+{% block title %}Vulnerabilities · VulPulse{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-4">
+  <div>
+    <h1 class="h3 mb-1">Vulnerabilities</h1>
+    <p class="text-secondary mb-0">{{ "{:,}".format(total) }} matching records</p>
+  </div>
+  <a class="btn btn-sm btn-outline-secondary" href="/vulns">Reset filters</a>
+</div>
+
+<form method="get" action="/vulns" class="card metric-card mb-4">
+  <div class="card-body">
+    <div class="row g-3 align-items-end">
+      <div class="col-12 col-lg-4">
+        <label class="form-label small text-secondary" for="q">Search</label>
+        <input class="form-control" id="q" name="q" value="{{ q }}" placeholder="CVE, title or description">
+      </div>
+      <div class="col-6 col-lg-2">
+        <label class="form-label small text-secondary" for="severity">Severity</label>
+        <select class="form-select" id="severity" name="severity">
+          <option value="">All</option>
+          {% for value in severities %}
+          <option value="{{ value }}" {% if severity == value %}selected{% endif %}>{{ value }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-6 col-lg-2">
+        <label class="form-label small text-secondary" for="source">Source</label>
+        <select class="form-select" id="source" name="source">
+          <option value="">All</option>
+          {% for item in sources %}
+          <option value="{{ item.name }}" {% if source == item.name %}selected{% endif %}>{{ item.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-6 col-lg-2">
+        <label class="form-label small text-secondary" for="vendor">Vendor</label>
+        <input class="form-control" id="vendor" name="vendor" value="{{ vendor }}" placeholder="e.g. apache">
+      </div>
+      <div class="col-6 col-lg-2">
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" id="kev" name="kev" value="on" {% if kev_checked %}checked{% endif %}>
+          <label class="form-check-label" for="kev">KEV only</label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" id="exploit" name="exploit" value="on" {% if exploit_checked %}checked{% endif %}>
+          <label class="form-check-label" for="exploit">Has exploit</label>
+        </div>
+      </div>
+      <div class="col-12 d-flex gap-2">
+        <button class="btn btn-primary btn-sm" type="submit">Apply filters</button>
+        <a class="btn btn-outline-secondary btn-sm" href="/vulns">Clear</a>
+      </div>
+    </div>
+  </div>
+</form>
+
+<div class="card metric-card">
+  <div class="card-body">
+    {% if items %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead>
+          <tr>
+            <th>CVE</th>
+            <th>Title</th>
+            <th>Severity</th>
+            <th>CVSS</th>
+            <th>EPSS</th>
+            <th>Flags</th>
+            <th>Published</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for vuln in items %}
+          <tr>
+            <td class="text-nowrap"><a href="/vulns/{{ vuln.cve_id or vuln.id }}">{{ vuln.cve_id or vuln.id }}</a></td>
+            <td><div class="text-truncate vuln-title">{{ display_title(vuln) }}</div></td>
+            <td>{{ severity_badge(vuln.severity) }}</td>
+            <td class="text-nowrap">{{ score(vuln.cvss_score) }}</td>
+            <td class="text-nowrap">{{ score(vuln.epss_score, 2) }}</td>
+            <td class="text-nowrap">{{ flags(vuln) }}</td>
+            <td class="text-nowrap text-secondary small">
+              {{ vuln.published_at.strftime("%Y-%m-%d") if vuln.published_at else "—" }}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-center text-secondary py-5">
+      <p class="mb-2">No vulnerabilities match these filters.</p>
+      <a href="/vulns">Clear filters</a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% if pages > 1 %}
+<nav class="mt-3" aria-label="Vulnerability pagination">
+  <ul class="pagination pagination-sm mb-0">
+    <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+      <a class="page-link" href="{{ request.url.include_query_params(page=page - 1) }}">Previous</a>
+    </li>
+    <li class="page-item disabled">
+      <span class="page-link">Page {{ page }} / {{ pages }}</span>
+    </li>
+    <li class="page-item {% if page >= pages %}disabled{% endif %}">
+      <a class="page-link" href="{{ request.url.include_query_params(page=page + 1) }}">Next</a>
+    </li>
+  </ul>
+</nav>
+{% endif %}
+{% endblock %}

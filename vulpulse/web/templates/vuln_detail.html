@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+{% from "macros.html" import severity_badge, flags, score %}
+
+{% block title %}{{ vuln.cve_id or vuln.title or "Vulnerability" }} · VulPulse{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+  <ol class="breadcrumb small mb-0">
+    <li class="breadcrumb-item"><a href="/">Dashboard</a></li>
+    <li class="breadcrumb-item"><a href="/vulns">Vulnerabilities</a></li>
+    <li class="breadcrumb-item active" aria-current="page">{{ vuln.cve_id or vuln.id }}</li>
+  </ol>
+</nav>
+
+<div class="mb-4">
+  <div class="text-secondary small mb-1">{{ vuln.cve_id or "VULN-" ~ vuln.id }}</div>
+  <h1 class="h3 mb-2">{{ vuln.title or vuln.cve_id or "Untitled vulnerability" }}</h1>
+  <div class="d-flex flex-wrap gap-2">
+    {{ severity_badge(vuln.severity) }}
+    {{ flags(vuln) }}
+    <span class="badge text-bg-secondary">{{ vuln.status }}</span>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-2">
+    <div class="card metric-card h-100"><div class="card-body">
+      <div class="text-secondary text-uppercase small">CVSS</div>
+      <div class="h4 mb-0">{{ score(vuln.cvss_score, 1) }}</div>
+      <div class="text-secondary small">{{ vuln.cvss_version or "" }}</div>
+    </div></div>
+  </div>
+  <div class="col-6 col-lg-2">
+    <div class="card metric-card h-100"><div class="card-body">
+      <div class="text-secondary text-uppercase small">EPSS</div>
+      <div class="h4 mb-0">{{ score(vuln.epss_score, 2) }}</div>
+      <div class="text-secondary small">pct {{ score(vuln.epss_percentile, 2) }}</div>
+    </div></div>
+  </div>
+  <div class="col-6 col-lg-2">
+    <div class="card metric-card h-100"><div class="card-body">
+      <div class="text-secondary text-uppercase small">Published</div>
+      <div class="h6 mb-0">{{ vuln.published_at.strftime("%Y-%m-%d") if vuln.published_at else "—" }}</div>
+    </div></div>
+  </div>
+  <div class="col-6 col-lg-2">
+    <div class="card metric-card h-100"><div class="card-body">
+      <div class="text-secondary text-uppercase small">Modified</div>
+      <div class="h6 mb-0">{{ vuln.modified_at.strftime("%Y-%m-%d") if vuln.modified_at else "—" }}</div>
+    </div></div>
+  </div>
+  <div class="col-6 col-lg-2">
+    <div class="card metric-card h-100"><div class="card-body">
+      <div class="text-secondary text-uppercase small">KEV due</div>
+      <div class="h6 mb-0">{{ vuln.kev_due_date.isoformat() if vuln.kev_due_date else "—" }}</div>
+    </div></div>
+  </div>
+  <div class="col-6 col-lg-2">
+    <div class="card metric-card h-100"><div class="card-body">
+      <div class="text-secondary text-uppercase small">Sources</div>
+      <div class="h4 mb-0">{{ vuln.source_records | length }}</div>
+    </div></div>
+  </div>
+</div>
+
+<div class="card metric-card mb-4">
+  <div class="card-body">
+    <h2 class="h6 mb-3">Description</h2>
+    {% if vuln.description %}
+    <p class="mb-0 description">{{ vuln.description }}</p>
+    {% else %}
+    <p class="text-secondary mb-0">No description available for this record.</p>
+    {% endif %}
+    {% if vuln.cvss_vector %}
+    <hr>
+    <div class="small text-secondary">CVSS vector</div>
+    <code>{{ vuln.cvss_vector }}</code>
+    {% endif %}
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-12 col-xl-6">
+    <div class="card metric-card h-100">
+      <div class="card-body">
+        <h2 class="h6 mb-3">Affected products</h2>
+        {% if vuln.product_links %}
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-0">
+            <thead><tr><th>Vendor</th><th>Product</th><th>Version</th></tr></thead>
+            <tbody>
+              {% for link in vuln.product_links %}
+              <tr>
+                <td>{{ link.product.vendor or "—" }}</td>
+                <td>{{ link.product.product }}</td>
+                <td class="text-secondary small">{{ link.version_range or "—" }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <p class="text-secondary mb-0">No product mapping available.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-xl-6">
+    <div class="card metric-card h-100">
+      <div class="card-body">
+        <h2 class="h6 mb-3">Weaknesses</h2>
+        {% if vuln.cwe_links %}
+        <div class="d-flex flex-wrap gap-2">
+          {% for link in vuln.cwe_links %}
+          <span class="badge text-bg-secondary">{{ link.cwe.id }}{% if link.cwe.name %} · {{ link.cwe.name }}{% endif %}</span>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-secondary mb-0">No CWE mapping available.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-xl-6">
+    <div class="card metric-card h-100">
+      <div class="card-body">
+        <h2 class="h6 mb-3">References</h2>
+        {% if vuln.references %}
+        <ul class="list-unstyled mb-0">
+          {% for reference in vuln.references %}
+          <li class="mb-2 text-break">
+            <a href="{{ reference.url | safe_url }}" target="_blank" rel="noopener noreferrer">{{ reference.url }}</a>
+            {% for tag in reference.tags or [] %}<span class="badge text-bg-dark ms-1">{{ tag }}</span>{% endfor %}
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-secondary mb-0">No references available.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-xl-6">
+    <div class="card metric-card h-100">
+      <div class="card-body">
+        <h2 class="h6 mb-3">Sources</h2>
+        {% if vuln.source_records %}
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-0">
+            <thead><tr><th>Source</th><th>Record</th><th>Fetched</th></tr></thead>
+            <tbody>
+              {% for record in vuln.source_records %}
+              <tr>
+                <td>{{ record.source.name }}</td>
+                <td class="text-break">
+                  {% if record.url %}
+                  <a href="{{ record.url | safe_url }}" target="_blank" rel="noopener noreferrer">{{ record.source_vuln_id }}</a>
+                  {% else %}
+                  {{ record.source_vuln_id }}
+                  {% endif %}
+                </td>
+                <td class="text-secondary small">{{ record.fetched_at.strftime("%Y-%m-%d") }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <p class="text-secondary mb-0">No source records available.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

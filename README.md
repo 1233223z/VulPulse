@@ -21,6 +21,15 @@ result through a REST API, a web dashboard, and configurable alerts
 > **Status:** early development (`v0.1.0` in progress). The API and database
 > schema may change before `v1.0`.
 
+## Screenshots
+
+![VulPulse dashboard](docs/dashboard.png)
+
+![Vulnerability list](docs/vulnerabilities.png)
+
+Screenshots use 31k+ real records collected by VulPulse from NVD, CISA KEV,
+Exploit-DB and FIRST EPSS.
+
 ## Why VulPulse
 
 Vulnerability information is scattered across dozens of sites with different
@@ -74,7 +83,7 @@ so multiple API workers can never trigger duplicate crawls.
 | **M5** | Exploit-DB + EPSS enrichment | ✅ |
 | **M6** | Scheduler worker and crawl run history | ✅ |
 | **M7** | REST API: vulnerabilities, statistics, sources | ✅ |
-| **M8** | Web dashboard | 🗓 |
+| **M8** | Web dashboard | ✅ |
 | **M9** | Subscription rules and WeCom / email alerts | 🗓 |
 | **M10** | Docker packaging, demo data, `v0.1.0` release | 🗓 |
 
@@ -147,6 +156,19 @@ Admin requests need `VULPULSE_API_KEY` and an `X-API-Key` header. The admin
 endpoint runs the crawl as a background task in the API process, which is
 convenient for a single-node setup; production deployments should use the
 scheduler worker or the CLI.
+
+## Web dashboard
+
+The same process serves the dashboard at `http://localhost:8000/`:
+
+- overview cards for total, KEV, public exploits and EPSS coverage
+- 30-day publication trend
+- vulnerability search, filters and pagination
+- detail pages with affected products, CWEs, references and source records
+- crawler status page
+
+Bootstrap and Chart.js are vendored under `vulpulse/web/static/vendor`, so the
+dashboard works without a CDN and offline.
 
 ## Scheduler
 

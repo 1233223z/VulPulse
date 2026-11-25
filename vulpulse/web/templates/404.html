@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block title %}Not found · VulPulse{% endblock %}
+
+{% block content %}
+<div class="text-center py-5">
+  <div class="display-1 text-secondary mb-2">404</div>
+  <h1 class="h3 mb-3">Vulnerability not found</h1>
+  <p class="text-secondary mb-4">
+    No record matches <code>{{ identifier }}</code>. It may not have been crawled yet.
+  </p>
+  <a class="btn btn-primary" href="/vulns">Back to vulnerabilities</a>
+</div>
+{% endblock %}

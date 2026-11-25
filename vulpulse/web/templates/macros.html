@@ -1,0 +1,28 @@
+{% macro severity_badge(severity) -%}
+  {%- set classes = {"critical": "danger", "high": "warning", "medium": "info", "low": "secondary", "none": "secondary", "unknown": "dark"} -%}
+  <span class="badge text-bg-{{ classes.get(severity, "secondary") }}">{{ severity or "unknown" }}</span>
+{%- endmacro %}
+
+{% macro display_title(vuln) -%}
+  {%- if vuln.title -%}
+    {{ vuln.title }}
+  {%- elif vuln.description -%}
+    {{ vuln.description[:110] }}{% if vuln.description|length > 110 %}…{% endif %}
+  {%- else -%}
+    —
+  {%- endif -%}
+{%- endmacro %}
+
+{% macro flags(vuln) -%}
+  {% if vuln.in_kev %}<span class="badge text-bg-danger">KEV</span>{% endif %}
+  {% if vuln.exploit_available %}<span class="badge text-bg-warning">Exploit</span>{% endif %}
+{%- endmacro %}
+
+{% macro score(value, digits=1) -%}
+  {%- if value is not none -%}{{ ("%." ~ digits ~ "f")|format(value) }}{%- else -%}—{%- endif -%}
+{%- endmacro %}
+
+{% macro run_status(status) -%}
+  {%- set classes = {"success": "success", "failed": "danger", "running": "info", "partial": "warning"} -%}
+  <span class="badge text-bg-{{ classes.get(status, "secondary") }}">{{ status }}</span>
+{%- endmacro %}

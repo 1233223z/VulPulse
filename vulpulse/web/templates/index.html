@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% from "macros.html" import display_title, severity_badge, flags, score %}
+
+{% block title %}Dashboard · VulPulse{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-4">
+  <div>
+    <h1 class="h3 mb-1">Dashboard</h1>
+    <p class="text-secondary mb-0">Public vulnerability intelligence, normalized and deduplicated.</p>
+  </div>
+  <a class="btn btn-sm btn-outline-secondary" href="/vulns">Browse vulnerabilities</a>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-3">
+    <div class="card metric-card h-100">
+      <div class="card-body">
+        <div class="text-secondary text-uppercase small">Total vulnerabilities</div>
+        <div class="display-6">{{ "{:,}".format(total) }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="card metric-card h-100">
+      <div class="card-body">
+        <div class="text-secondary text-uppercase small">Known exploited</div>
+        <div class="display-6 text-danger">{{ "{:,}".format(in_kev) }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="card metric-card h-100">
+      <div class="card-body">
+        <div class="text-secondary text-uppercase small">Public exploits</div>
+        <div class="display-6 text-warning">{{ "{:,}".format(exploit_available) }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="card metric-card h-100">
+      <div class="card-body">
+        <div class="text-secondary text-uppercase small">EPSS scored</div>
+        <div class="display-6 text-info">{{ "{:,}".format(epss_scored) }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card metric-card mb-4">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h2 class="h6 mb-0">Published trend · last 30 days</h2>
+      <span class="text-secondary small">Source: normalized publication dates</span>
+    </div>
+    <div class="chart-wrap">
+      <canvas id="trendChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-12 col-xl-6">
+    <div class="card metric-card h-100">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h2 class="h6 mb-0">Latest critical</h2>
+          <a class="small" href="/vulns?severity=critical">View all</a>
+        </div>
+        {% if latest_critical %}
+        <div class="table-responsive">
+          <table class="table table-sm table-hover align-middle mb-0">
+            <thead>
+              <tr><th>CVE</th><th>Title</th><th>CVSS</th><th>Flags</th></tr>
+            </thead>
+            <tbody>
+              {% for vuln in latest_critical %}
+              <tr>
+                <td class="text-nowrap"><a href="/vulns/{{ vuln.cve_id or vuln.id }}">{{ vuln.cve_id or vuln.id }}</a></td>
+                <td><div class="text-truncate vuln-title">{{ display_title(vuln) }}</div></td>
+                <td class="text-nowrap">{{ score(vuln.cvss_score) }}</td>
+                <td class="text-nowrap">{{ flags(vuln) }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <p class="text-secondary mb-0">No critical vulnerabilities yet.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-xl-6">
+    <div class="card metric-card h-100">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h2 class="h6 mb-0">Latest known exploited</h2>
+          <a class="small" href="/vulns?kev=on">View all</a>
+        </div>
+        {% if latest_kev %}
+        <div class="table-responsive">
+          <table class="table table-sm table-hover align-middle mb-0">
+            <thead>
+              <tr><th>CVE</th><th>Title</th><th>Severity</th><th>EPSS</th></tr>
+            </thead>
+            <tbody>
+              {% for vuln in latest_kev %}
+              <tr>
+                <td class="text-nowrap"><a href="/vulns/{{ vuln.cve_id or vuln.id }}">{{ vuln.cve_id or vuln.id }}</a></td>
+                <td><div class="text-truncate vuln-title">{{ display_title(vuln) }}</div></td>
+                <td>{{ severity_badge(vuln.severity) }}</td>
+                <td class="text-nowrap">{{ score(vuln.epss_score, 2) }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <p class="text-secondary mb-0">No KEV entries yet.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', path='vendor/chart.umd.min.js') }}"></script>
+<script>
+  const trend = {{ trend | tojson }};
+  const canvas = document.getElementById("trendChart");
+  if (canvas && typeof Chart !== "undefined") {
+    new Chart(canvas, {
+      type: "line",
+      data: {
+        labels: trend.map((point) => point.date),
+        datasets: [{
+          label: "Published vulnerabilities",
+          data: trend.map((point) => point.count),
+          borderColor: "#4f8cff",
+          backgroundColor: "rgba(79, 140, 255, 0.15)",
+          fill: true,
+          tension: 0.3,
+          pointRadius: 2,
+          pointHoverRadius: 4
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { maxTicksLimit: 10 }, grid: { display: false } },
+          y: { beginAtZero: true, ticks: { precision: 0 } }
+        }
+      }
+    });
+  }
+</script>
+{% endblock %}

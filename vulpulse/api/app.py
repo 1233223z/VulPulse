@@ -2,15 +2,24 @@
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
+import mimetypes
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
+from fastapi.staticfiles import StaticFiles
 
 from vulpulse import __version__
 from vulpulse.api.routers import admin, health, sources, stats, vulns
 from vulpulse.config import get_settings
 from vulpulse.logging import setup_logging
+from vulpulse.web.routes import STATIC_DIR
+from vulpulse.web.routes import router as web_router
+
+# Windows can map .js to text/plain in the registry; with nosniff the browser
+# then refuses to execute it. Register the correct types for every platform.
+mimetypes.add_type("text/javascript", ".js")
+mimetypes.add_type("text/css", ".css")
 
 
 @asynccontextmanager
@@ -33,18 +42,33 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
+    application.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
     application.include_router(health.router)
     application.include_router(vulns.router, prefix="/api/v1")
     application.include_router(stats.router, prefix="/api/v1")
     application.include_router(sources.router, prefix="/api/v1")
     application.include_router(admin.router, prefix="/api/v1")
+    application.include_router(web_router)
 
-    @application.get("/", include_in_schema=False)
-    async def index() -> dict[str, str]:
+    @application.middleware("http")
+    async def security_headers(
+        request: Request,
+        call_next: Callable[[Request], Awaitable[Response]],
+    ) -> Response:
+        response = await call_next(request)
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("X-Frame-Options", "DENY")
+        response.headers.setdefault("Referrer-Policy", "no-referrer")
+        return response
+
+    @application.get("/api", include_in_schema=False)
+    async def api_index() -> dict[str, str]:
         return {
             "name": "VulPulse",
             "version": __version__,
             "docs": "/docs",
+            "v1": "/api/v1",
         }
 
     return application

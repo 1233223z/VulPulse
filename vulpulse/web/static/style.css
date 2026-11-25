@@ -1,0 +1,72 @@
+:root {
+  --vp-bg: #0b0f14;
+  --vp-card: #111821;
+  --vp-border: #1f2a37;
+  --vp-accent: #4f8cff;
+}
+
+body {
+  background-color: var(--vp-bg);
+}
+
+a {
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+.navbar-brand {
+  letter-spacing: 0.04em;
+}
+
+.metric-card {
+  --bs-card-bg: var(--vp-card);
+  --bs-card-border-color: var(--vp-border);
+}
+
+.metric-card .display-6,
+.metric-card .h4 {
+  font-variant-numeric: tabular-nums;
+}
+
+.table {
+  --bs-table-bg: transparent;
+  --bs-table-border-color: var(--vp-border);
+}
+
+.table thead th {
+  color: #8b98a8;
+  font-size: 0.76rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.vuln-title {
+  max-width: 460px;
+}
+
+.chart-wrap {
+  position: relative;
+  height: 300px;
+}
+
+.description {
+  white-space: pre-line;
+}
+
+.footer {
+  font-size: 0.82rem;
+}
+
+code {
+  color: #9ecbff;
+  word-break: break-all;
+}
+
+.badge {
+  font-weight: 500;
+}
