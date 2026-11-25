@@ -6,6 +6,9 @@ import os
 
 import pytest
 
+# Set before test modules import the FastAPI app.
+os.environ.setdefault("VULPULSE_SESSION_SECRET", "test-session-secret")
+
 
 @pytest.fixture(autouse=True)
 def _clean_vulpulse_env(monkeypatch: pytest.MonkeyPatch) -> None:

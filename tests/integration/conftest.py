@@ -10,6 +10,7 @@ from httpx import ASGITransport, AsyncClient
 
 from vulpulse.api.app import create_app
 from vulpulse.api.deps import get_session
+from vulpulse.config import get_settings
 from vulpulse.db.repositories import (
     CrawlRunRepository,
     SourceRepository,
@@ -98,7 +99,13 @@ async def seeded(db: Database) -> dict[str, int]:
 
 
 @pytest.fixture
-async def client(db: Database, seeded: dict[str, int]) -> AsyncIterator[AsyncClient]:
+async def client(
+    db: Database,
+    seeded: dict[str, int],
+    monkeypatch: pytest.MonkeyPatch,
+) -> AsyncIterator[AsyncClient]:
+    monkeypatch.setenv("VULPULSE_SESSION_SECRET", "test-session-secret")
+    get_settings.cache_clear()
     application = create_app()
 
     async def override_session() -> AsyncIterator:

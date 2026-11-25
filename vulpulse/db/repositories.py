@@ -505,6 +505,13 @@ class ChannelRepository:
     async def get_by_name(self, name: str) -> Channel | None:
         return await self.session.scalar(select(Channel).where(Channel.name == name))
 
+    async def get_by_id(self, channel_id: int) -> Channel | None:
+        return await self.session.get(Channel, channel_id)
+
+    async def delete(self, channel: Channel) -> None:
+        await self.session.delete(channel)
+        await self.session.flush()
+
     async def list_all(self) -> list[Channel]:
         result = await self.session.scalars(select(Channel).order_by(Channel.name))
         return list(result.all())
@@ -529,6 +536,13 @@ class SubscriptionRepository:
 
     async def get_by_name(self, name: str) -> Subscription | None:
         return await self.session.scalar(select(Subscription).where(Subscription.name == name))
+
+    async def get_by_id(self, subscription_id: int) -> Subscription | None:
+        return await self.session.get(Subscription, subscription_id)
+
+    async def delete(self, subscription: Subscription) -> None:
+        await self.session.delete(subscription)
+        await self.session.flush()
 
     async def list_all(self) -> list[Subscription]:
         statement = (

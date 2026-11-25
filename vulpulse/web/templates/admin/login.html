@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block title %}Admin login · VulPulse{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-12 col-md-6 col-lg-4">
+    <div class="card metric-card">
+      <div class="card-body">
+        <h1 class="h4 mb-3">Admin login</h1>
+
+        {% if error %}
+        <div class="alert alert-danger py-2">{{ error }}</div>
+        {% endif %}
+
+        {% if not api_key_configured %}
+        <div class="alert alert-warning py-2 small">
+          Set <code>VULPULSE_API_KEY</code> to enable the admin UI.
+        </div>
+        {% endif %}
+
+        <form method="post" action="/admin/login">
+          <input type="hidden" name="next" value="{{ next }}">
+          <label class="form-label small text-secondary" for="api_key">API key</label>
+          <input class="form-control" id="api_key" name="api_key" type="password"
+                 autocomplete="current-password" required>
+          <button class="btn btn-primary w-100 mt-3" type="submit">Sign in</button>
+        </form>
+
+        <p class="text-secondary small mt-3 mb-0">
+          The admin UI uses the same key as the <code>X-API-Key</code> header.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import mimetypes
+import secrets
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, Response
 from fastapi.staticfiles import StaticFiles
+from loguru import logger
+from starlette.middleware.sessions import SessionMiddleware
 
 from vulpulse import __version__
 from vulpulse.api.routers import (
@@ -21,6 +24,7 @@ from vulpulse.api.routers import (
 )
 from vulpulse.config import get_settings
 from vulpulse.logging import setup_logging
+from vulpulse.web.admin import router as admin_web_router
 from vulpulse.web.routes import STATIC_DIR
 from vulpulse.web.routes import router as web_router
 
@@ -39,6 +43,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 
 
 def create_app() -> FastAPI:
+    settings = get_settings()
     application = FastAPI(
         title="VulPulse API",
         version=__version__,
@@ -48,6 +53,15 @@ def create_app() -> FastAPI:
         ),
         license_info={"name": "MIT"},
         lifespan=lifespan,
+    )
+
+    if not settings.session_secret:
+        logger.warning("VULPULSE_SESSION_SECRET is not set; admin sessions reset on restart")
+    application.add_middleware(
+        SessionMiddleware,
+        secret_key=settings.session_secret or secrets.token_urlsafe(32),
+        same_site="lax",
+        https_only=settings.session_https_only,
     )
 
     application.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
@@ -60,6 +74,7 @@ def create_app() -> FastAPI:
     application.include_router(export.router, prefix="/api/v1")
     application.include_router(admin.router, prefix="/api/v1")
     application.include_router(web_router)
+    application.include_router(admin_web_router)
 
     @application.middleware("http")
     async def security_headers(

@@ -34,8 +34,10 @@ class Settings(BaseSettings):
     # Database
     database_url: str = "sqlite+aiosqlite:///./data/vulpulse.db"
 
-    # Admin API
+    # Admin API and admin web UI
     api_key: str = ""
+    session_secret: str = ""
+    session_https_only: bool = False
 
     # Data sources
     nvd_api_key: str = ""

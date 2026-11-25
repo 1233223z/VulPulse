@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+
+{% block title %}Subscriptions · Admin · VulPulse{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+  <div>
+    <h1 class="h3 mb-1">Subscriptions</h1>
+    <p class="text-secondary mb-0">Rules that decide which vulnerabilities trigger alerts.</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a class="btn btn-sm btn-outline-secondary" href="/admin/channels">Channels</a>
+    <form method="post" action="/admin/logout" class="d-inline">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <button class="btn btn-sm btn-outline-secondary" type="submit">Sign out</button>
+    </form>
+  </div>
+</div>
+
+{% if msg %}<div class="alert alert-success py-2">{{ msg }}</div>{% endif %}
+{% if error %}<div class="alert alert-danger py-2">{{ error }}</div>{% endif %}
+
+<div class="card metric-card mb-4">
+  <div class="card-body">
+    {% if subscriptions %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead><tr><th>Name</th><th>Channel</th><th>Enabled</th><th>Rule</th><th>Actions</th></tr></thead>
+        <tbody>
+          {% for subscription in subscriptions %}
+          {% set rule = subscription.rule_json %}
+          <tr>
+            <td>{{ subscription.name }}</td>
+            <td>{{ subscription.channel.name if subscription.channel else "—" }}</td>
+            <td>
+              {% if subscription.enabled %}
+              <span class="badge text-bg-success">enabled</span>
+              {% else %}
+              <span class="badge text-bg-secondary">disabled</span>
+              {% endif %}
+            </td>
+            <td class="small text-secondary">
+              {% if rule.severities %}{{ rule.severities|join(", ") }}{% else %}all severities{% endif %}
+              {% if rule.in_kev %} · KEV{% endif %}
+              {% if rule.exploit_available %} · exploit{% endif %}
+              {% if rule.risk_min %} · risk ≥ {{ rule.risk_min }}{% endif %}
+            </td>
+            <td class="d-flex gap-2">
+              <form method="post" action="/admin/subscriptions/{{ subscription.id }}/toggle">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <button class="btn btn-sm btn-outline-secondary" type="submit">
+                  {% if subscription.enabled %}Disable{% else %}Enable{% endif %}
+                </button>
+              </form>
+              <form method="post" action="/admin/subscriptions/{{ subscription.id }}/delete"
+                    onsubmit="return confirm('Delete this subscription?')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="text-secondary mb-0">No subscriptions yet.</p>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card metric-card">
+  <div class="card-body">
+    <h2 class="h6 mb-3">Add subscription</h2>
+    {% if channels %}
+    <form method="post" action="/admin/subscriptions">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <div class="row g-3">
+        <div class="col-12 col-md-4">
+          <label class="form-label small text-secondary" for="name">Name</label>
+          <input class="form-control" id="name" name="name" required>
+        </div>
+        <div class="col-12 col-md-4">
+          <label class="form-label small text-secondary" for="channel_id">Channel</label>
+          <select class="form-select" id="channel_id" name="channel_id" required>
+            {% for channel in channels %}
+            <option value="{{ channel.id }}">{{ channel.name }} ({{ channel.type }})</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-12 col-md-4">
+          <label class="form-label small text-secondary d-block">Severities</label>
+          {% for sev in severities %}
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="checkbox" name="severities" value="{{ sev }}"
+                   id="sev-{{ sev }}" {% if sev in ("critical", "high") %}checked{% endif %}>
+            <label class="form-check-label" for="sev-{{ sev }}">{{ sev }}</label>
+          </div>
+          {% endfor %}
+        </div>
+        <div class="col-12 col-md-3">
+          <label class="form-label small text-secondary" for="keywords">Keywords</label>
+          <input class="form-control" id="keywords" name="keywords" placeholder="struts, exchange">
+        </div>
+        <div class="col-12 col-md-3">
+          <label class="form-label small text-secondary" for="vendors">Vendors</label>
+          <input class="form-control" id="vendors" name="vendors" placeholder="apache, microsoft">
+        </div>
+        <div class="col-12 col-md-3">
+          <label class="form-label small text-secondary" for="products">Products</label>
+          <input class="form-control" id="products" name="products" placeholder="struts, exchange">
+        </div>
+        <div class="col-12 col-md-3">
+          <label class="form-label small text-secondary" for="sources">Sources</label>
+          <input class="form-control" id="sources" name="sources" placeholder="nvd, cisa_kev">
+        </div>
+        <div class="col-6 col-md-2">
+          <label class="form-label small text-secondary" for="cvss_min">CVSS min</label>
+          <input class="form-control" id="cvss_min" name="cvss_min" type="number" step="0.1" min="0" max="10">
+        </div>
+        <div class="col-6 col-md-2">
+          <label class="form-label small text-secondary" for="epss_min">EPSS min</label>
+          <input class="form-control" id="epss_min" name="epss_min" type="number" step="0.01" min="0" max="1">
+        </div>
+        <div class="col-6 col-md-2">
+          <label class="form-label small text-secondary" for="within_days">Within days</label>
+          <input class="form-control" id="within_days" name="within_days" type="number" min="1" max="365">
+        </div>
+        <div class="col-12 col-md-3 d-flex align-items-end gap-3 pb-2">
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="kev" name="kev">
+            <label class="form-check-label" for="kev">KEV only</label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="exploit" name="exploit">
+            <label class="form-check-label" for="exploit">Has exploit</label>
+          </div>
+        </div>
+        <div class="col-12">
+          <button class="btn btn-primary" type="submit">Add subscription</button>
+          <span class="text-secondary small ms-2">Comma-separate list fields.</span>
+        </div>
+      </div>
+    </form>
+    {% else %}
+    <div class="alert alert-warning mb-0">
+      Create a <a href="/admin/channels">notification channel</a> first.
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
