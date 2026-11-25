@@ -9,7 +9,7 @@ Collect · Normalize · Deduplicate · Score · Alert
 [![CI](https://github.com/1233223z/VulPulse/actions/workflows/ci.yml/badge.svg)](https://github.com/1233223z/VulPulse/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Status](https://img.shields.io/badge/status-v0.5.0-orange)
+![Status](https://img.shields.io/badge/status-v0.5.1-orange)
 
 </div>
 
@@ -19,7 +19,7 @@ them across sources, enriches them with exploit intelligence, and exposes the
 result through a REST API, a web dashboard, and configurable alerts
 (WeCom / email).
 
-> **Status:** `v0.5.0`. The API and database schema may change before `v1.0`.
+> **Status:** `v0.5.1`. The API and database schema may change before `v1.0`.
 
 ## Screenshots
 
@@ -349,7 +349,8 @@ can:
 
 Set `VULPULSE_SESSION_HTTPS_ONLY=true` when serving over HTTPS. If
 `VULPULSE_SESSION_SECRET` is unset, an ephemeral secret is generated and admin
-sessions reset when the process restarts. The admin UI is intended for trusted
+sessions reset when the process restarts. Failed logins are rate-limited to five
+attempts per five minutes per client IP. The admin UI is intended for trusted
 networks or a reverse proxy; it does not implement multi-user accounts.
 
 ## Configuration
@@ -416,6 +417,17 @@ Issues and pull requests are welcome. Please run `ruff check .`,
 `ruff format --check .` and `pytest` before opening a PR. Commit messages follow
 [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`,
 `docs:`, ...).
+
+## Security
+
+- Run `python scripts/osv_audit.py` to check installed Python packages and
+  vendored frontend assets against OSV.
+- CI runs the same audit, and Dependabot keeps Python, Action and Docker base
+  image dependencies current.
+- `vulpulse serve` binds to `127.0.0.1` by default. Pass `--host 0.0.0.0` only
+  when you intend to expose it, preferably behind an HTTPS reverse proxy.
+- Report vulnerabilities through GitHub Security Advisories as described in
+  [`SECURITY.md`](SECURITY.md).
 
 ## Disclaimer
 

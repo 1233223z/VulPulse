@@ -5,6 +5,28 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.1] - 2026-11-25
+
+### Fixed
+
+- Escaped Markdown metacharacters in report titles and filter descriptions to
+  prevent link and raw-HTML injection in exported Markdown.
+- Added per-client-IP rate limiting for admin login (five attempts per five
+  minutes) and removed a production `assert`.
+- Upgraded pytest to `>=9.0.3` for CVE-2025-71176 (development dependency).
+
+### Changed
+
+- `vulpulse serve` now binds to `127.0.0.1` by default. Pass
+  `--host 0.0.0.0` explicitly for LAN or container access.
+- Admin responses send `Cache-Control: no-store` and all responses send a
+  restrictive `Permissions-Policy`.
+
+### Security
+
+- Added an OSV dependency audit script and CI job, plus Dependabot for pip,
+  GitHub Actions and Docker.
+
 ## [0.5.0] - 2026-11-25
 
 ### Added
@@ -92,6 +114,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   data volume and health checks.
 - CI across Python 3.10, 3.12 and 3.14, plus a container build job.
 
+[0.5.1]: https://github.com/1233223z/VulPulse/releases/tag/v0.5.1
 [0.5.0]: https://github.com/1233223z/VulPulse/releases/tag/v0.5.0
 [0.4.0]: https://github.com/1233223z/VulPulse/releases/tag/v0.4.0
 [0.3.0]: https://github.com/1233223z/VulPulse/releases/tag/v0.3.0
