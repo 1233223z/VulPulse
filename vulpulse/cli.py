@@ -370,6 +370,17 @@ def subscription_list() -> None:
 
 
 @app.command()
+def score() -> None:
+    """Recompute risk scores for every vulnerability."""
+    import asyncio
+
+    from vulpulse.analyzer.scoring_service import RiskService
+
+    stats = asyncio.run(RiskService().score_all())
+    typer.echo(f"scored={stats.total} average={stats.average:.2f}")
+
+
+@app.command()
 def notify(
     dry_run: bool = typer.Option(
         False,

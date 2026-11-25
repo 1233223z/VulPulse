@@ -10,7 +10,9 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from vulpulse.analyzer.scorer import RiskWeights, score_risk
 from vulpulse.api.deps import get_session
+from vulpulse.config import get_settings
 from vulpulse.db.repositories import SourceRepository, VulnerabilityRepository
 
 WEB_DIR = Path(__file__).resolve().parent
@@ -153,10 +155,17 @@ async def vuln_detail(
             status_code=404,
         )
 
+    settings = get_settings()
+    risk = score_risk(
+        vuln,
+        RiskWeights.from_settings(settings),
+        recency_days=settings.risk_recency_days,
+    )
+
     return templates.TemplateResponse(
         request=request,
         name="vuln_detail.html",
-        context={"vuln": vuln, "active": "vulns"},
+        context={"vuln": vuln, "risk": risk, "active": "vulns"},
     )
 
 

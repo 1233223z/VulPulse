@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from datetime import timedelta
 from typing import Any, Literal
 
+from vulpulse.analyzer.scoring_service import RiskService, ScoreStats
 from vulpulse.config import Settings
 from vulpulse.crawler.base import BaseSource
 from vulpulse.crawler.registry import create_source
@@ -20,7 +21,7 @@ from vulpulse.timeutils import utcnow
 @dataclass(frozen=True)
 class JobSchedule:
     job_id: str
-    kind: Literal["crawl", "enrich", "notify"]
+    kind: Literal["crawl", "enrich", "notify", "score"]
     target: str
     interval_seconds: int
     lookback_days: int = 0
@@ -57,6 +58,14 @@ def default_schedules(settings: Settings) -> list[JobSchedule]:
             target="epss",
             interval_seconds=settings.epss_interval_hours * 3600,
             run_on_start=settings.scheduler_run_on_start,
+        ),
+        JobSchedule(
+            job_id="score:refresh",
+            kind="score",
+            target="risk",
+            interval_seconds=settings.score_interval_hours * 3600,
+            # Ingest and EPSS refresh scores immediately; this job handles decay.
+            run_on_start=False,
         ),
         JobSchedule(
             job_id="notify:alerts",
@@ -117,3 +126,13 @@ async def run_notify_job(
 ) -> NotificationStats:
     service = service_factory(database=database, settings=settings)
     return await service.run_cycle()
+
+
+async def run_score_job(
+    *,
+    settings: Settings,
+    database: Database | None = None,
+    service_factory: Callable[..., RiskService] = RiskService,
+) -> ScoreStats:
+    service = service_factory(database=database, settings=settings)
+    return await service.score_all()

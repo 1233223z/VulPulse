@@ -46,6 +46,8 @@ async def seeded(db: Database) -> dict[str, int]:
             title="Apache Struts RCE",
             description="A critical Struts vulnerability.",
             severity="critical",
+            risk_score=95.0,
+            risk_level="critical",
             cvss_score=9.8,
             cvss_vector="CVSS:3.1/AV:N",
             cvss_version="3.1",
@@ -80,6 +82,8 @@ async def seeded(db: Database) -> dict[str, int]:
             title="Second issue",
             description="A medium issue.",
             severity="medium",
+            risk_score=45.0,
+            risk_level="medium",
             cvss_score=5.0,
             published_at=now - timedelta(days=1),
         )

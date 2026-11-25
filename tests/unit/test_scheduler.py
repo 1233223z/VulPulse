@@ -21,6 +21,7 @@ def test_default_schedules_follow_settings() -> None:
         epss_interval_hours=6,
         nvd_lookback_days=4,
         notify_interval_minutes=10,
+        score_interval_hours=8,
         scheduler_run_on_start=False,
     )
 
@@ -31,6 +32,7 @@ def test_default_schedules_follow_settings() -> None:
         "crawl:cisa_kev",
         "crawl:exploitdb",
         "enrich:epss",
+        "score:refresh",
         "notify:alerts",
     }
     assert schedules["crawl:nvd"].interval_seconds == 30 * 60
@@ -38,6 +40,8 @@ def test_default_schedules_follow_settings() -> None:
     assert schedules["crawl:cisa_kev"].interval_seconds == 3 * 3600
     assert schedules["crawl:exploitdb"].interval_seconds == 12 * 3600
     assert schedules["enrich:epss"].interval_seconds == 6 * 3600
+    assert schedules["score:refresh"].interval_seconds == 8 * 3600
+    assert schedules["score:refresh"].run_on_start is False
     assert schedules["notify:alerts"].interval_seconds == 10 * 60
     assert schedules["notify:alerts"].run_on_start is False
     assert all(not schedule.run_on_start for schedule in schedules.values())
@@ -61,6 +65,7 @@ async def test_register_jobs(tmp_path) -> None:
             "crawl:cisa_kev",
             "crawl:exploitdb",
             "enrich:epss",
+            "score:refresh",
             "notify:alerts",
         }
         trigger = jobs["crawl:nvd"].trigger
@@ -84,6 +89,9 @@ async def test_run_once_dispatches_both_job_kinds(tmp_path) -> None:
     async def fake_notify(schedule: JobSchedule) -> None:
         calls.append(schedule.job_id)
 
+    async def fake_score(schedule: JobSchedule) -> None:
+        calls.append(schedule.job_id)
+
     worker = SchedulerWorker(
         settings=settings,
         database=database,
@@ -91,16 +99,18 @@ async def test_run_once_dispatches_both_job_kinds(tmp_path) -> None:
         crawl_job=fake_crawl,
         enrich_job=fake_enrich,
         notify_job=fake_notify,
+        score_job=fake_score,
     )
 
     try:
         await worker.run_once(JobSchedule("crawl:test", "crawl", "nvd", 60))
         await worker.run_once(JobSchedule("enrich:test", "enrich", "epss", 60))
         await worker.run_once(JobSchedule("notify:test", "notify", "alerts", 60))
+        await worker.run_once(JobSchedule("score:test", "score", "risk", 60))
     finally:
         await database.dispose()
 
-    assert calls == ["crawl:test", "enrich:test", "notify:test"]
+    assert calls == ["crawl:test", "enrich:test", "notify:test", "score:test"]
 
 
 async def test_jobs_are_serialized(tmp_path) -> None:

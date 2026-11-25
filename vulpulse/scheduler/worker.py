@@ -23,6 +23,7 @@ from vulpulse.scheduler.jobs import (
     run_crawl_job,
     run_epss_job,
     run_notify_job,
+    run_score_job,
 )
 
 JobCallable = Callable[[JobSchedule], Awaitable[Any]]
@@ -38,6 +39,7 @@ class SchedulerWorker:
         crawl_job: JobCallable | None = None,
         enrich_job: JobCallable | None = None,
         notify_job: JobCallable | None = None,
+        score_job: JobCallable | None = None,
     ) -> None:
         self.settings = settings or get_settings()
         self.database = database or get_database()
@@ -45,6 +47,7 @@ class SchedulerWorker:
         self._crawl_job = crawl_job
         self._enrich_job = enrich_job
         self._notify_job = notify_job
+        self._score_job = score_job
         # SQLite is single-writer. Serialize all scheduled work in this worker
         # so two sources cannot write at the same time.
         self._job_lock = asyncio.Lock()
@@ -116,11 +119,20 @@ class SchedulerWorker:
                             database=self.database,
                         )
                     )
-                else:
+                elif schedule.kind == "notify":
                     result = (
                         await self._notify_job(schedule)
                         if self._notify_job is not None
                         else await run_notify_job(
+                            settings=self.settings,
+                            database=self.database,
+                        )
+                    )
+                else:
+                    result = (
+                        await self._score_job(schedule)
+                        if self._score_job is not None
+                        else await run_score_job(
                             settings=self.settings,
                             database=self.database,
                         )

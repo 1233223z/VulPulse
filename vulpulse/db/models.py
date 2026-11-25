@@ -51,6 +51,7 @@ class Vulnerability(Base, TimestampMixin):
     __table_args__ = (
         Index("ix_vuln_published_at", "published_at"),
         Index("ix_vuln_severity", "severity"),
+        Index("ix_vuln_risk_score", "risk_score"),
         Index("ix_vuln_cvss_score", "cvss_score"),
         Index("ix_vuln_in_kev", "in_kev"),
     )
@@ -61,6 +62,8 @@ class Vulnerability(Base, TimestampMixin):
     title: Mapped[str | None] = mapped_column(String(512))
     description: Mapped[str | None] = mapped_column(Text)
     severity: Mapped[str] = mapped_column(String(16), default="unknown", nullable=False)
+    risk_score: Mapped[float | None] = mapped_column(Float)
+    risk_level: Mapped[str | None] = mapped_column(String(16))
     cvss_score: Mapped[float | None] = mapped_column(Float)
     cvss_vector: Mapped[str | None] = mapped_column(String(256))
     cvss_version: Mapped[str | None] = mapped_column(String(16))

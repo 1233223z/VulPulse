@@ -7,6 +7,7 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from vulpulse.analyzer.scorer import RiskWeights, score_risk
 from vulpulse.api.deps import get_session
 from vulpulse.api.schemas import (
     CweOut,
@@ -20,6 +21,7 @@ from vulpulse.api.schemas import (
     VulnPage,
     VulnSummary,
 )
+from vulpulse.config import get_settings
 from vulpulse.db.repositories import VulnerabilityRepository
 
 router = APIRouter(prefix="/vulns", tags=["vulnerabilities"])
@@ -35,6 +37,7 @@ async def list_vulns(
     exploit: bool | None = None,
     cvss_min: float | None = Query(default=None, ge=0, le=10),
     epss_min: float | None = Query(default=None, ge=0, le=1),
+    risk_min: float | None = Query(default=None, ge=0, le=100),
     published_from: datetime | None = None,
     published_to: datetime | None = None,
     sort: SortField = "published_at",
@@ -53,6 +56,7 @@ async def list_vulns(
         exploit_available=exploit,
         cvss_min=cvss_min,
         epss_min=epss_min,
+        risk_min=risk_min,
         published_from=published_from,
         published_to=published_to,
         sort=sort,
@@ -83,7 +87,17 @@ async def get_vuln(
             detail="Vulnerability not found",
         )
 
+    settings = get_settings()
+    risk = score_risk(
+        vuln,
+        RiskWeights.from_settings(settings),
+        recency_days=settings.risk_recency_days,
+    )
+
     summary = VulnSummary.model_validate(vuln)
+    summary.risk_score = risk.score
+    summary.risk_level = risk.level
+
     return VulnDetail(
         **summary.model_dump(),
         description=vuln.description,
@@ -92,6 +106,7 @@ async def get_vuln(
         epss_percentile=vuln.epss_percentile,
         kev_due_date=vuln.kev_due_date,
         status=vuln.status,
+        risk_breakdown=risk.components,
         sources=[
             SourceRecordOut(
                 source=record.source.name,

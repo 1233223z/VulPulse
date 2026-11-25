@@ -9,6 +9,8 @@ from typing import Any
 from sqlalchemy import select
 
 from vulpulse.analyzer.normalizer import normalize_raw
+from vulpulse.analyzer.scorer import RiskWeights, score_risk
+from vulpulse.config import Settings, get_settings
 from vulpulse.crawler.base import BaseSource
 from vulpulse.crawler.models import RawVuln
 from vulpulse.db.models import CrawlRun, Source
@@ -44,8 +46,15 @@ class IngestStats:
 class IngestService:
     """Writes crawled records into the database in bounded transactions."""
 
-    def __init__(self, database: Database | None = None) -> None:
+    def __init__(
+        self,
+        database: Database | None = None,
+        settings: Settings | None = None,
+    ) -> None:
         self.database = database or get_database()
+        self.settings = settings or get_settings()
+        self.risk_weights = RiskWeights.from_settings(self.settings)
+        self.recency_days = self.settings.risk_recency_days
 
     async def ingest(
         self,
@@ -123,6 +132,14 @@ class IngestService:
     ) -> bool:
         fields = normalize_raw(raw)
         vulnerability, created = await repo.upsert(raw.dedupe_key, **fields)
+
+        risk = score_risk(
+            vulnerability,
+            self.risk_weights,
+            recency_days=self.recency_days,
+        )
+        vulnerability.risk_score = risk.score
+        vulnerability.risk_level = risk.level
 
         await repo.add_source_record(
             vulnerability,

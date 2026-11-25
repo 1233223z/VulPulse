@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from vulpulse.api.deps import get_session
-from vulpulse.api.schemas import SeverityCounts, StatsOverview, TrendPoint
+from vulpulse.api.schemas import RiskCounts, SeverityCounts, StatsOverview, TrendPoint
 from vulpulse.db.repositories import VulnerabilityRepository
 
 router = APIRouter(prefix="/stats", tags=["statistics"])
@@ -19,6 +19,7 @@ async def overview(
 ) -> StatsOverview:
     repository = VulnerabilityRepository(session)
     counts = await repository.severity_counts()
+    risk_counts = await repository.risk_level_counts()
     trend = await repository.published_trend(days)
 
     return StatsOverview(
@@ -30,6 +31,13 @@ async def overview(
             low=counts.get("low", 0),
             none=counts.get("none", 0),
             unknown=counts.get("unknown", 0),
+        ),
+        risk=RiskCounts(
+            critical=risk_counts.get("critical", 0),
+            high=risk_counts.get("high", 0),
+            medium=risk_counts.get("medium", 0),
+            low=risk_counts.get("low", 0),
+            minimal=risk_counts.get("minimal", 0),
         ),
         in_kev=await repository.count_in_kev(),
         exploit_available=await repository.count_with_exploit(),

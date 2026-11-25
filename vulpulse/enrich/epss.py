@@ -63,6 +63,11 @@ class EpssEnricher:
                 await session.commit()
 
         stats.updated = len(rows)
+
+        # EPSS changes the risk score, so refresh it after every enrichment run.
+        from vulpulse.analyzer.scoring_service import RiskService
+
+        await RiskService(self.database, self.settings).score_all()
         return stats
 
     async def _load_cve_ids(self) -> set[str]:

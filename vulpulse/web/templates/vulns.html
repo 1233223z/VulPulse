@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import display_title, severity_badge, flags, score %}
+{% from "macros.html" import display_title, severity_badge, flags, score, risk_badge %}
 
 {% block title %}Vulnerabilities · VulPulse{% endblock %}
 
@@ -69,6 +69,7 @@
             <th>CVE</th>
             <th>Title</th>
             <th>Severity</th>
+            <th>Risk</th>
             <th>CVSS</th>
             <th>EPSS</th>
             <th>Flags</th>
@@ -81,6 +82,10 @@
             <td class="text-nowrap"><a href="/vulns/{{ vuln.cve_id or vuln.id }}">{{ vuln.cve_id or vuln.id }}</a></td>
             <td><div class="text-truncate vuln-title">{{ display_title(vuln) }}</div></td>
             <td>{{ severity_badge(vuln.severity) }}</td>
+            <td class="text-nowrap">
+              {{ score(vuln.risk_score) }}
+              {{ risk_badge(vuln.risk_level) }}
+            </td>
             <td class="text-nowrap">{{ score(vuln.cvss_score) }}</td>
             <td class="text-nowrap">{{ score(vuln.epss_score, 2) }}</td>
             <td class="text-nowrap">{{ flags(vuln) }}</td>

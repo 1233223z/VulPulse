@@ -3,6 +3,11 @@
   <span class="badge text-bg-{{ classes.get(severity, "secondary") }}">{{ severity or "unknown" }}</span>
 {%- endmacro %}
 
+{% macro risk_badge(level) -%}
+  {%- set classes = {"critical": "danger", "high": "warning", "medium": "info", "low": "secondary", "minimal": "dark"} -%}
+  <span class="badge text-bg-{{ classes.get(level, "secondary") }}">{{ level or "unscored" }}</span>
+{%- endmacro %}
+
 {% macro display_title(vuln) -%}
   {%- if vuln.title -%}
     {{ vuln.title }}

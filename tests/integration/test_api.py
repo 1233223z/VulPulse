@@ -42,6 +42,7 @@ async def test_list_vulns_defaults_to_newest_first(client: AsyncClient) -> None:
         ({"source": "nvd"}, "CVE-2024-0001"),
         ({"cvss_min": 9}, "CVE-2024-0001"),
         ({"epss_min": 0.5}, "CVE-2024-0001"),
+        ({"risk_min": 80}, "CVE-2024-0001"),
     ],
 )
 async def test_filters(
@@ -68,6 +69,16 @@ async def test_pagination(client: AsyncClient) -> None:
     assert data["items"][0]["cve_id"] == "CVE-2024-0001"
 
 
+async def test_sort_by_risk(client: AsyncClient) -> None:
+    response = await client.get(
+        "/api/v1/vulns",
+        params={"sort": "risk_score", "order": "desc"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["items"][0]["cve_id"] == "CVE-2024-0001"
+
+
 async def test_detail_by_cve(client: AsyncClient) -> None:
     response = await client.get("/api/v1/vulns/CVE-2024-0001")
 
@@ -75,6 +86,16 @@ async def test_detail_by_cve(client: AsyncClient) -> None:
     data = response.json()
     assert data["title"] == "Apache Struts RCE"
     assert data["description"] == "A critical Struts vulnerability."
+    assert data["risk_level"] == "critical"
+    assert data["risk_score"] is not None
+    assert data["risk_score"] >= 80
+    assert set(data["risk_breakdown"]) == {
+        "cvss",
+        "epss",
+        "kev",
+        "exploit",
+        "recency",
+    }
     assert data["products"] == [
         {
             "vendor": "apache",
@@ -112,6 +133,8 @@ async def test_stats_overview(client: AsyncClient) -> None:
     assert data["total"] == 2
     assert data["severity"]["critical"] == 1
     assert data["severity"]["medium"] == 1
+    assert data["risk"]["critical"] == 1
+    assert data["risk"]["medium"] == 1
     assert data["in_kev"] == 1
     assert data["exploit_available"] == 1
     assert data["epss_scored"] == 1

@@ -6,7 +6,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -60,6 +60,15 @@ class Settings(BaseSettings):
     epss_interval_hours: int = 24
     nvd_lookback_days: int = 2
     notify_interval_minutes: int = 5
+    score_interval_hours: int = 6
+
+    # Risk scoring
+    risk_recency_days: int = 90
+    risk_weight_cvss: float = 0.40
+    risk_weight_epss: float = 0.25
+    risk_weight_kev: float = 0.20
+    risk_weight_exploit: float = 0.10
+    risk_weight_recency: float = 0.05
 
     # Notifications
     notify_max_attempts: int = 3
@@ -89,12 +98,29 @@ class Settings(BaseSettings):
         "notify_interval_minutes",
         "notify_max_attempts",
         "notify_initial_lookback_days",
+        "score_interval_hours",
+        "risk_recency_days",
     )
     @classmethod
     def _positive_interval(cls, value: int) -> int:
         if value <= 0:
             raise ValueError("scheduler and notification values must be positive")
         return value
+
+    @model_validator(mode="after")
+    def _validate_risk_weights(self) -> Settings:
+        weights = (
+            self.risk_weight_cvss,
+            self.risk_weight_epss,
+            self.risk_weight_kev,
+            self.risk_weight_exploit,
+            self.risk_weight_recency,
+        )
+        if any(weight < 0 for weight in weights):
+            raise ValueError("risk weights must be zero or positive")
+        if sum(weights) <= 0:
+            raise ValueError("at least one risk weight must be positive")
+        return self
 
     @field_validator("nvd_lookback_days")
     @classmethod

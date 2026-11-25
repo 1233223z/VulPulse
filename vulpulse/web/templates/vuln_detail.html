@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import severity_badge, flags, score %}
+{% from "macros.html" import severity_badge, flags, score, risk_badge %}
 
 {% block title %}{{ vuln.cve_id or vuln.title or "Vulnerability" }} · VulPulse{% endblock %}
 
@@ -17,12 +17,21 @@
   <h1 class="h3 mb-2">{{ vuln.title or vuln.cve_id or "Untitled vulnerability" }}</h1>
   <div class="d-flex flex-wrap gap-2">
     {{ severity_badge(vuln.severity) }}
+    {{ risk_badge(risk.level) }}
+    <span class="badge text-bg-primary">Risk {{ score(risk.score, 1) }}</span>
     {{ flags(vuln) }}
     <span class="badge text-bg-secondary">{{ vuln.status }}</span>
   </div>
 </div>
 
 <div class="row g-3 mb-4">
+  <div class="col-6 col-lg-2">
+    <div class="card metric-card h-100"><div class="card-body">
+      <div class="text-secondary text-uppercase small">Risk</div>
+      <div class="h4 mb-0">{{ score(risk.score, 1) }}</div>
+      <div class="small">{{ risk_badge(risk.level) }}</div>
+    </div></div>
+  </div>
   <div class="col-6 col-lg-2">
     <div class="card metric-card h-100"><div class="card-body">
       <div class="text-secondary text-uppercase small">CVSS</div>
@@ -60,6 +69,36 @@
       <div class="text-secondary text-uppercase small">Sources</div>
       <div class="h4 mb-0">{{ vuln.source_records | length }}</div>
     </div></div>
+  </div>
+</div>
+
+<div class="card metric-card mb-4">
+  <div class="card-body">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+      <h2 class="h6 mb-0">Risk breakdown</h2>
+      <div class="small text-secondary">
+        Weighted score <strong class="text-body">{{ score(risk.score, 1) }}</strong>
+        {{ risk_badge(risk.level) }}
+      </div>
+    </div>
+    {% set labels = {"cvss": "CVSS", "epss": "EPSS", "kev": "KEV", "exploit": "Exploit", "recency": "Recency"} %}
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mb-0">
+        <thead>
+          <tr><th>Signal</th><th>Normalized</th><th>Weight</th><th>Contribution</th></tr>
+        </thead>
+        <tbody>
+          {% for name, component in risk.components.items() %}
+          <tr>
+            <td>{{ labels.get(name, name) }}</td>
+            <td>{{ component.normalized }}</td>
+            <td>{{ "%.0f"|format(component.weight * 100) }}%</td>
+            <td>{{ "%.2f"|format(component.contribution) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   </div>
 </div>
 

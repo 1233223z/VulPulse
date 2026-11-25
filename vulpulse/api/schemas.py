@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -13,6 +13,7 @@ SortField = Literal[
     "modified_at",
     "cvss_score",
     "epss_score",
+    "risk_score",
     "created_at",
 ]
 Order = Literal["asc", "desc"]
@@ -25,6 +26,8 @@ class VulnSummary(BaseModel):
     cve_id: str | None
     title: str | None
     severity: str
+    risk_score: float | None
+    risk_level: str | None
     cvss_score: float | None
     epss_score: float | None
     in_kev: bool
@@ -72,6 +75,7 @@ class VulnDetail(VulnSummary):
     epss_percentile: float | None
     kev_due_date: date | None
     status: str
+    risk_breakdown: dict[str, Any] | None
     sources: list[SourceRecordOut]
     products: list[ProductOut]
     cwes: list[CweOut]
@@ -92,9 +96,18 @@ class TrendPoint(BaseModel):
     count: int
 
 
+class RiskCounts(BaseModel):
+    critical: int = 0
+    high: int = 0
+    medium: int = 0
+    low: int = 0
+    minimal: int = 0
+
+
 class StatsOverview(BaseModel):
     total: int
     severity: SeverityCounts
+    risk: RiskCounts
     in_kev: int
     exploit_available: int
     epss_scored: int

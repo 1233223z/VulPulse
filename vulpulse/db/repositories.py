@@ -155,6 +155,15 @@ class VulnerabilityRepository:
         result = await self.session.execute(statement)
         return {str(severity): int(count) for severity, count in result.all()}
 
+    async def risk_level_counts(self) -> dict[str, int]:
+        statement = (
+            select(Vulnerability.risk_level, func.count())
+            .where(Vulnerability.risk_level.is_not(None))
+            .group_by(Vulnerability.risk_level)
+        )
+        result = await self.session.execute(statement)
+        return {str(level): int(count) for level, count in result.all()}
+
     async def published_trend(self, days: int = 30) -> list[tuple[str, int]]:
         start = utcnow() - timedelta(days=days)
         day = func.date(Vulnerability.published_at)
@@ -181,6 +190,7 @@ class VulnerabilityRepository:
         exploit_available: bool | None = None,
         cvss_min: float | None = None,
         epss_min: float | None = None,
+        risk_min: float | None = None,
         published_from: datetime | None = None,
         published_to: datetime | None = None,
         sort: str = "published_at",
@@ -223,6 +233,8 @@ class VulnerabilityRepository:
             filters.append(Vulnerability.cvss_score >= cvss_min)
         if epss_min is not None:
             filters.append(Vulnerability.epss_score >= epss_min)
+        if risk_min is not None:
+            filters.append(Vulnerability.risk_score >= risk_min)
         if published_from is not None:
             filters.append(Vulnerability.published_at >= to_naive_utc(published_from))
         if published_to is not None:
@@ -236,6 +248,7 @@ class VulnerabilityRepository:
             "modified_at": Vulnerability.modified_at,
             "cvss_score": Vulnerability.cvss_score,
             "epss_score": Vulnerability.epss_score,
+            "risk_score": Vulnerability.risk_score,
             "created_at": Vulnerability.created_at,
         }
         sort_column = sort_columns.get(sort, Vulnerability.published_at)
