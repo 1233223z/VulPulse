@@ -46,5 +46,56 @@ def init_db() -> None:
     typer.echo("Database is up to date.")
 
 
+@app.command("sources")
+def list_sources() -> None:
+    """List registered crawler sources."""
+    from vulpulse.crawler import available_sources
+
+    for name in available_sources():
+        typer.echo(name)
+
+
+@app.command()
+def crawl(
+    source: str = typer.Option(
+        ...,
+        "--source",
+        "-s",
+        help="Source name, for example `nvd` or `cisa_kev`.",
+    ),
+    since_days: int = typer.Option(
+        7,
+        "--since-days",
+        min=1,
+        help="Incremental window in days.",
+    ),
+) -> None:
+    """Run one crawl against a source and persist the results."""
+    import asyncio
+    from datetime import timedelta
+
+    from vulpulse.crawler import create_source
+    from vulpulse.ingest import IngestService
+    from vulpulse.timeutils import utcnow
+
+    settings = get_settings()
+
+    async def _run():
+        crawler = create_source(source, settings)
+        try:
+            return await IngestService().ingest(
+                crawler,
+                since=utcnow() - timedelta(days=since_days),
+            )
+        finally:
+            await crawler.close()
+
+    stats = asyncio.run(_run())
+    typer.echo(
+        f"fetched={stats.fetched} created={stats.created} updated={stats.updated} "
+        f"products={stats.products} cwes={stats.cwes} references={stats.references}"
+    )
+
+
 if __name__ == "__main__":
     app()

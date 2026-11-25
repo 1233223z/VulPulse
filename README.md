@@ -70,7 +70,7 @@ so multiple API workers can never trigger duplicate crawls.
 | **M1** | Configuration, structured logging, CLI entry point | ✅ |
 | **M2** | Database models, migrations, repositories | ✅ |
 | **M3** | Crawler framework: source base class, registry, rate limiting, retries | ✅ |
-| **M4** | NVD + CISA KEV ingestion with idempotent upserts | 🗓 |
+| **M4** | NVD + CISA KEV ingestion with idempotent upserts | ✅ |
 | **M5** | Exploit-DB + EPSS enrichment | 🗓 |
 | **M6** | Scheduler worker and crawl run history | 🗓 |
 | **M7** | REST API: vulnerabilities, statistics, sources | 🗓 |
@@ -99,8 +99,15 @@ cp .env.example .env
 pytest
 ruff check .
 vulpulse init-db
+vulpulse sources
+vulpulse crawl --source cisa_kev --since-days 1
+vulpulse crawl --source nvd --since-days 7
 vulpulse version
 ```
+
+`vulpulse crawl` writes to the SQLite database and records every run in
+`crawl_runs`. Re-running a source is idempotent: records are merged by CVE,
+not duplicated.
 
 Python 3.10+ is required. The default database is SQLite, so no external
 services are needed.

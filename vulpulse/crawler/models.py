@@ -42,6 +42,7 @@ class RawVuln(BaseModel):
     in_kev: bool | None = None
     kev_due_date: date | None = None
     exploit_available: bool | None = None
+    vuln_status: str | None = None
     published_at: datetime | None = None
     modified_at: datetime | None = None
     references: list[str] = Field(default_factory=list)

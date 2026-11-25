@@ -8,7 +8,17 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from vulpulse.db.base import utcnow
-from vulpulse.db.models import CrawlRun, Source, SourceRecord, Vulnerability
+from vulpulse.db.models import (
+    CrawlRun,
+    Cwe,
+    Product,
+    Source,
+    SourceRecord,
+    VulnCwe,
+    Vulnerability,
+    VulnProduct,
+    VulnReference,
+)
 
 
 class SourceRepository:
@@ -99,6 +109,90 @@ class VulnerabilityRepository:
 
     async def count(self) -> int:
         return int(await self.session.scalar(select(func.count(Vulnerability.id))) or 0)
+
+    async def get_or_create_product(self, vendor: str | None, product: str) -> Product:
+        stmt = select(Product).where(func.lower(Product.product) == product.lower())
+        if vendor is None:
+            stmt = stmt.where(Product.vendor.is_(None))
+        else:
+            stmt = stmt.where(func.lower(Product.vendor) == vendor.lower())
+
+        existing = await self.session.scalar(stmt)
+        if existing is not None:
+            return existing
+
+        created = Product(vendor=vendor, product=product)
+        self.session.add(created)
+        await self.session.flush()
+        return created
+
+    async def link_product(
+        self,
+        vulnerability: Vulnerability,
+        product: Product,
+        *,
+        version_range: str | None = None,
+        cpe: str | None = None,
+    ) -> VulnProduct:
+        stmt = select(VulnProduct).where(
+            VulnProduct.vuln_id == vulnerability.id,
+            VulnProduct.product_id == product.id,
+            VulnProduct.version_range == version_range,
+            VulnProduct.cpe == cpe,
+        )
+        existing = await self.session.scalar(stmt)
+        if existing is not None:
+            return existing
+
+        created = VulnProduct(
+            vuln_id=vulnerability.id,
+            product_id=product.id,
+            version_range=version_range,
+            cpe=cpe,
+        )
+        self.session.add(created)
+        await self.session.flush()
+        return created
+
+    async def get_or_create_cwe(self, cwe_id: str) -> Cwe:
+        normalized = cwe_id.strip().upper()
+        existing = await self.session.get(Cwe, normalized)
+        if existing is not None:
+            return existing
+
+        created = Cwe(id=normalized)
+        self.session.add(created)
+        await self.session.flush()
+        return created
+
+    async def link_cwe(self, vulnerability: Vulnerability, cwe: Cwe) -> VulnCwe:
+        existing = await self.session.get(VulnCwe, (vulnerability.id, cwe.id))
+        if existing is not None:
+            return existing
+
+        created = VulnCwe(vuln_id=vulnerability.id, cwe_id=cwe.id)
+        self.session.add(created)
+        await self.session.flush()
+        return created
+
+    async def add_reference(
+        self,
+        vulnerability: Vulnerability,
+        url: str,
+        tags: list[str] | None = None,
+    ) -> VulnReference:
+        stmt = select(VulnReference).where(
+            VulnReference.vuln_id == vulnerability.id,
+            VulnReference.url == url,
+        )
+        existing = await self.session.scalar(stmt)
+        if existing is not None:
+            return existing
+
+        created = VulnReference(vuln_id=vulnerability.id, url=url, tags=tags)
+        self.session.add(created)
+        await self.session.flush()
+        return created
 
 
 class CrawlRunRepository:

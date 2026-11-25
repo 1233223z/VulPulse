@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime
 
 from sqlalchemy import MetaData
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
+from vulpulse.timeutils import utcnow
 
 NAMING_CONVENTION = {
     "ix": "ix_%(column_0_label)s",
@@ -14,11 +16,6 @@ NAMING_CONVENTION = {
     "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
     "pk": "pk_%(table_name)s",
 }
-
-
-def utcnow() -> datetime:
-    """Return the current UTC time as a naive datetime (SQLite-friendly)."""
-    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 class Base(DeclarativeBase):
