@@ -10,7 +10,15 @@ from fastapi import FastAPI, Request, Response
 from fastapi.staticfiles import StaticFiles
 
 from vulpulse import __version__
-from vulpulse.api.routers import admin, health, sources, stats, vendors, vulns
+from vulpulse.api.routers import (
+    admin,
+    export,
+    health,
+    sources,
+    stats,
+    vendors,
+    vulns,
+)
 from vulpulse.config import get_settings
 from vulpulse.logging import setup_logging
 from vulpulse.web.routes import STATIC_DIR
@@ -49,6 +57,7 @@ def create_app() -> FastAPI:
     application.include_router(stats.router, prefix="/api/v1")
     application.include_router(sources.router, prefix="/api/v1")
     application.include_router(vendors.router, prefix="/api/v1")
+    application.include_router(export.router, prefix="/api/v1")
     application.include_router(admin.router, prefix="/api/v1")
     application.include_router(web_router)
 

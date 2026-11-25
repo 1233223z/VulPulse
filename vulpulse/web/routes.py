@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import urlencode, urlparse
 
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import HTMLResponse
@@ -123,12 +123,19 @@ async def vuln_list(
         )
 
     sources = await SourceRepository(session).list_all()
+    export_params = {
+        key: value
+        for key, value in request.query_params.items()
+        if key not in {"page", "format", "size"}
+    }
+    export_query = urlencode(export_params)
 
     return templates.TemplateResponse(
         request=request,
         name="vulns.html",
         context={
             "items": items,
+            "export_query": export_query,
             "total": total,
             "page": page,
             "pages": pages,

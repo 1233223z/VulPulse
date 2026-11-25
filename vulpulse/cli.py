@@ -370,6 +370,71 @@ def subscription_list() -> None:
 
 
 @app.command()
+def export(
+    report_format: str = typer.Option("md", "--format", "-f", help="md or html"),
+    output: str = typer.Option("-", "--output", "-o", help="File path, or - for stdout"),
+    q: str | None = typer.Option(None, "--q"),
+    severity: str | None = typer.Option(None, "--severity"),
+    source: str | None = typer.Option(None, "--source"),
+    vendor: str | None = typer.Option(None, "--vendor"),
+    product: str | None = typer.Option(None, "--product"),
+    kev: bool = typer.Option(False, "--kev", help="Only CISA KEV entries"),
+    exploit: bool = typer.Option(False, "--exploit", help="Only entries with public exploits"),
+    cvss_min: float | None = typer.Option(None, "--cvss-min"),
+    epss_min: float | None = typer.Option(None, "--epss-min"),
+    risk_min: float | None = typer.Option(None, "--risk-min"),
+    since_days: int | None = typer.Option(None, "--since-days", min=1),
+    sort: str = typer.Option("risk_score", "--sort"),
+    order: str = typer.Option("desc", "--order"),
+    limit: int = typer.Option(500, "--limit", min=1, max=2000),
+) -> None:
+    """Export a filtered vulnerability report as Markdown or HTML."""
+    import asyncio
+    from datetime import timedelta
+    from pathlib import Path
+
+    from vulpulse.db.session import get_database
+    from vulpulse.report.service import ReportFilters, generate_report
+    from vulpulse.timeutils import utcnow
+
+    if report_format not in {"md", "html"}:
+        typer.echo("Format must be md or html.", err=True)
+        raise typer.Exit(code=2)
+
+    filters = ReportFilters(
+        q=q,
+        severity=severity,
+        source=source,
+        vendor=vendor,
+        product=product,
+        kev=True if kev else None,
+        exploit=True if exploit else None,
+        cvss_min=cvss_min,
+        epss_min=epss_min,
+        risk_min=risk_min,
+        published_from=(utcnow() - timedelta(days=since_days) if since_days is not None else None),
+        sort=sort,
+        order=order,
+        limit=limit,
+    )
+
+    async def _run():
+        async with get_database().session() as session:
+            return await generate_report(session, filters, report_format)
+
+    result = asyncio.run(_run())
+
+    if output == "-":
+        typer.echo(result.content)
+        return
+
+    destination = Path(output)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_text(result.content, encoding="utf-8")
+    typer.echo(f"Wrote {result.included}/{result.total} vulnerabilities to {destination}")
+
+
+@app.command()
 def score() -> None:
     """Recompute risk scores for every vulnerability."""
     import asyncio

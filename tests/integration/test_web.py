@@ -26,6 +26,16 @@ async def test_vulnerability_list_and_filter(client: AsyncClient) -> None:
     assert "CVE-2024-0002" not in filtered.text
 
 
+async def test_list_has_export_links(client: AsyncClient) -> None:
+    response = await client.get("/vulns", params={"severity": "critical"})
+
+    assert response.status_code == 200
+    assert "Export MD" in response.text
+    assert "Export HTML" in response.text
+    assert "/api/v1/export?format=md" in response.text
+    assert "severity=critical" in response.text
+
+
 async def test_vulnerability_detail(client: AsyncClient) -> None:
     response = await client.get("/vulns/CVE-2024-0001")
 

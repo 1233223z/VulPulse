@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "vulpulse"
-version = "0.3.0"
+version = "0.4.0"
 description = "Open-source vulnerability intelligence platform: collect, normalize, score and alert on public vulnerability data."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -73,6 +73,8 @@ known-first-party = ["vulpulse"]
 "vulpulse/api/routers/*.py" = ["B008"]
 "vulpulse/web/routes.py" = ["B008"]
 "vulpulse/cli.py" = ["B008"]
+# The report builder intentionally contains long inline CSS/HTML strings.
+"vulpulse/report/builder.py" = ["E501"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
