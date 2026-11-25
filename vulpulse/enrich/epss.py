@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import csv
 import gzip
+import io
 from collections.abc import Iterator
 from dataclasses import dataclass
 from typing import Any
@@ -54,7 +55,15 @@ class EpssEnricher:
             return EpssStats()
 
         payload = await self.client.get_bytes(self.settings.epss_scores_url)
-        rows = list(parse_scores(decode_scores(payload), cve_ids))
+        rows = list(
+            parse_scores(
+                decode_scores(
+                    payload,
+                    max_bytes=self.settings.http_max_response_bytes,
+                ),
+                cve_ids,
+            )
+        )
         stats = EpssStats(matched=len(rows))
 
         async with self.database.session() as session:
@@ -95,12 +104,19 @@ class EpssEnricher:
         await session.execute(statement, batch)
 
 
-def decode_scores(payload: bytes) -> str:
-    """Decode a gzip-compressed or plain EPSS CSV."""
-    try:
-        content = gzip.decompress(payload)
-    except OSError:
+def decode_scores(
+    payload: bytes,
+    *,
+    max_bytes: int = 64 * 1024 * 1024,
+) -> str:
+    """Decode an EPSS CSV with a hard cap on decompressed size."""
+    if payload[:2] == b"\x1f\x8b":
+        with gzip.GzipFile(fileobj=io.BytesIO(payload)) as archive:
+            content = archive.read(max_bytes + 1)
+    else:
         content = payload
+    if len(content) > max_bytes:
+        raise ValueError("EPSS payload exceeds the decompressed size limit")
     return content.decode("utf-8-sig")
 
 

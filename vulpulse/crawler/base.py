@@ -36,6 +36,8 @@ class BaseSource(ABC):
                 timeout=settings.http_timeout_seconds,
                 user_agent=settings.http_user_agent,
                 rate_limiter=AsyncRateLimiter(rate, period),
+                max_response_bytes=settings.http_max_response_bytes,
+                max_redirects=settings.http_max_redirects,
             )
         self.client = client
 

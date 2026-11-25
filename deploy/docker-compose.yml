@@ -1,17 +1,26 @@
 name: vulpulse
 
-x-common-env: &common-env
+x-app-env: &app-env
   VULPULSE_DATABASE_URL: sqlite+aiosqlite:////app/data/vulpulse.db
   VULPULSE_DATA_DIR: /app/data
   VULPULSE_LOG_DIR: /app/data/logs
   VULPULSE_PUBLIC_BASE_URL: ${VULPULSE_PUBLIC_BASE_URL:-http://localhost:8000}
+  TZ: ${TZ:-UTC}
+
+x-admin-env: &admin-env
   VULPULSE_API_KEY: ${VULPULSE_API_KEY:-}
   VULPULSE_SESSION_SECRET: ${VULPULSE_SESSION_SECRET:-}
   VULPULSE_SESSION_HTTPS_ONLY: ${VULPULSE_SESSION_HTTPS_ONLY:-false}
   VULPULSE_SESSION_MAX_AGE_HOURS: ${VULPULSE_SESSION_MAX_AGE_HOURS:-8}
+
+x-source-env: &source-env
   VULPULSE_NVD_API_KEY: ${VULPULSE_NVD_API_KEY:-}
+
+x-wecom-env: &wecom-env
   VULPULSE_WECOM_WEBHOOK_URL: ${VULPULSE_WECOM_WEBHOOK_URL:-}
   VULPULSE_WECOM_ALLOWED_HOSTS: ${VULPULSE_WECOM_ALLOWED_HOSTS:-qyapi.weixin.qq.com}
+
+x-notify-env: &notify-env
   VULPULSE_SMTP_HOST: ${VULPULSE_SMTP_HOST:-}
   VULPULSE_SMTP_PORT: ${VULPULSE_SMTP_PORT:-587}
   VULPULSE_SMTP_USERNAME: ${VULPULSE_SMTP_USERNAME:-}
@@ -19,9 +28,10 @@ x-common-env: &common-env
   VULPULSE_SMTP_FROM: ${VULPULSE_SMTP_FROM:-}
   VULPULSE_SMTP_USE_TLS: ${VULPULSE_SMTP_USE_TLS:-true}
   VULPULSE_SMTP_USE_SSL: ${VULPULSE_SMTP_USE_SSL:-false}
-  VULPULSE_SCHEDULER_RUN_ON_START: ${VULPULSE_SCHEDULER_RUN_ON_START:-true}
   VULPULSE_NOTIFY_MAX_ATTEMPTS: ${VULPULSE_NOTIFY_MAX_ATTEMPTS:-3}
-  TZ: ${TZ:-UTC}
+
+x-scheduler-env: &scheduler-env
+  VULPULSE_SCHEDULER_RUN_ON_START: ${VULPULSE_SCHEDULER_RUN_ON_START:-true}
 
 services:
   init:
@@ -30,7 +40,8 @@ services:
       dockerfile: deploy/Dockerfile
     image: vulpulse:local
     command: ["vulpulse", "init-db"]
-    environment: *common-env
+    environment:
+      <<: *app-env
     volumes:
       - vulpulse-data:/app/data
     restart: "no"
@@ -41,7 +52,8 @@ services:
     depends_on:
       init:
         condition: service_completed_successfully
-    environment: *common-env
+    environment:
+      <<: [*app-env, *admin-env, *source-env, *wecom-env]
     volumes:
       - vulpulse-data:/app/data
     ports:
@@ -64,7 +76,8 @@ services:
     depends_on:
       init:
         condition: service_completed_successfully
-    environment: *common-env
+    environment:
+      <<: [*app-env, *source-env, *wecom-env, *notify-env, *scheduler-env]
     volumes:
       - vulpulse-data:/app/data
     restart: unless-stopped

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import gzip
 
+import pytest
+
 from vulpulse.enrich.epss import decode_scores, parse_scores
 
 CSV_TEXT = """#model_version:v2024.01.01,score_date:2024-01-01T00:00:00Z
@@ -35,3 +37,10 @@ def test_decode_scores_handles_gzip_and_plain_text() -> None:
 
     assert decode_scores(gzip.compress(encoded)) == CSV_TEXT
     assert decode_scores(encoded) == CSV_TEXT
+
+
+def test_decode_scores_enforces_decompressed_limit() -> None:
+    payload = gzip.compress(b"x" * 100)
+
+    with pytest.raises(ValueError, match="size limit"):
+        decode_scores(payload, max_bytes=10)

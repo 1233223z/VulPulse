@@ -50,11 +50,13 @@ class Settings(BaseSettings):
     exploitdb_csv_url: str = (
         "https://gitlab.com/exploit-database/exploitdb/-/raw/main/files_exploits.csv"
     )
-    epss_scores_url: str = "https://epss.cyentia.com/epss_scores-current.csv.gz"
+    epss_scores_url: str = "https://epss.empiricalsecurity.com/epss_scores-current.csv.gz"
 
     # HTTP client
     http_timeout_seconds: float = 30.0
     http_user_agent: str = "VulPulse/0.1"
+    http_max_response_bytes: int = 64 * 1024 * 1024
+    http_max_redirects: int = 3
 
     # Scheduler
     scheduler_run_on_start: bool = True
@@ -106,6 +108,7 @@ class Settings(BaseSettings):
         "score_interval_hours",
         "risk_recency_days",
         "session_max_age_hours",
+        "http_max_response_bytes",
     )
     @classmethod
     def _positive_interval(cls, value: int) -> int:
