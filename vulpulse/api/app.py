@@ -85,6 +85,12 @@ def create_app() -> FastAPI:
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
         response.headers.setdefault("X-Frame-Options", "DENY")
         response.headers.setdefault("Referrer-Policy", "no-referrer")
+        response.headers.setdefault(
+            "Permissions-Policy",
+            "camera=(), microphone=(), geolocation=()",
+        )
+        if request.url.path.startswith("/admin"):
+            response.headers.setdefault("Cache-Control", "no-store")
         return response
 
     @application.get("/api", include_in_schema=False)

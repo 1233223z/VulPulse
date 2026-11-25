@@ -16,10 +16,13 @@ from vulpulse.db.repositories import ChannelRepository, SubscriptionRepository
 from vulpulse.notifier.rules import SubscriptionRule
 from vulpulse.web.admin_auth import (
     admin_redirect,
+    clear_login_failures,
     current_csrf,
     is_admin,
     login_admin,
+    login_allowed,
     logout_admin,
+    record_login_failure,
     safe_next,
     verify_csrf,
 )
@@ -77,6 +80,14 @@ async def login_submit(request: Request) -> HTMLResponse | RedirectResponse:
     next_url = safe_next(str(form.get("next") or "")) or "/admin/subscriptions"
     settings = get_settings()
 
+    if not login_allowed(request):
+        return _login_page(
+            request,
+            error="Too many failed login attempts. Try again later.",
+            next_url=next_url,
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+        )
+
     if not settings.api_key:
         return _login_page(
             request,
@@ -85,6 +96,7 @@ async def login_submit(request: Request) -> HTMLResponse | RedirectResponse:
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
     if not secrets.compare_digest(api_key, settings.api_key):
+        record_login_failure(request)
         return _login_page(
             request,
             error="Invalid API key.",
@@ -92,6 +104,7 @@ async def login_submit(request: Request) -> HTMLResponse | RedirectResponse:
             status_code=status.HTTP_401_UNAUTHORIZED,
         )
 
+    clear_login_failures(request)
     login_admin(request)
     return RedirectResponse(next_url, status_code=303)
 
@@ -346,7 +359,14 @@ async def create_subscription(
             status_code=status.HTTP_400_BAD_REQUEST,
         )
 
-    assert channel is not None
+    if channel is None:
+        return await _render_subscriptions(
+            request,
+            session,
+            error="Choose a valid channel.",
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+
     await subscription_repository.create(
         name,
         channel.id,

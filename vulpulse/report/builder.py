@@ -61,7 +61,16 @@ def _fmt(value: float | None, digits: int = 1) -> str:
 def _md_escape(value: str | None) -> str:
     if not value:
         return "—"
-    return " ".join(value.split()).replace("\\", "\\\\").replace("|", "\\|").replace("`", "\\`")
+    return (
+        " ".join(value.split())
+        .replace("\\", "\\\\")
+        .replace("|", "\\|")
+        .replace("`", "\\`")
+        .replace("[", "\\[")
+        .replace("]", "\\]")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+    )
 
 
 def _html_text(value: str | None) -> str:
@@ -106,7 +115,7 @@ def build_markdown(
         "# VulPulse Vulnerability Report",
         "",
         f"Generated: {generated_at.strftime('%Y-%m-%d %H:%M UTC')}",
-        f"Filters: {filters_text}",
+        f"Filters: {_md_escape(filters_text)}",
         f"Matching vulnerabilities: {summary.total} (showing {summary.included})",
         "",
         "## Summary",

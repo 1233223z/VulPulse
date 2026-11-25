@@ -50,18 +50,21 @@ def test_summary_counts() -> None:
 
 
 def test_markdown_escapes_pipes_and_contains_links() -> None:
-    item = make_vuln()
+    item = make_vuln(title="Example | [click](https://evil.test) <b>bold</b>")
 
     markdown = build_markdown(
         [item],
         ReportSummary.from_items([item], total=1),
-        "severity critical",
+        'search "[x](https://evil.test)"',
         datetime(2026, 11, 25, 14, 0),
         "https://vulpulse.example",
     )
 
     assert "# VulPulse Vulnerability Report" in markdown
-    assert "Example \\| vulnerability" in markdown
+    assert "Example \\| \\[click\\](https://evil.test)" in markdown
+    assert "&lt;b&gt;bold&lt;/b&gt;" in markdown
+    assert "[click](https://evil.test)" not in markdown
+    assert "\\[x\\](https://evil.test)" in markdown
     assert "https://vulpulse.example/vulns/CVE-2024-0001" in markdown
     assert "| CVE-2024-0001 |" not in markdown
 

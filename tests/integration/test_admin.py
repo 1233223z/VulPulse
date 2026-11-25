@@ -8,6 +8,14 @@ from httpx import AsyncClient
 from vulpulse.config import get_settings
 from vulpulse.db.repositories import ChannelRepository, SubscriptionRepository
 from vulpulse.db.session import Database
+from vulpulse.web.admin_auth import reset_login_attempts
+
+
+@pytest.fixture(autouse=True)
+def _reset_login_rate_limit() -> None:
+    reset_login_attempts()
+    yield
+    reset_login_attempts()
 
 
 def csrf_from(html: str) -> str:
@@ -61,6 +69,29 @@ async def test_admin_login_rejects_wrong_key(
     )
 
     assert response.status_code == 401
+
+
+async def test_admin_login_is_rate_limited(
+    client: AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("VULPULSE_API_KEY", "test-key")
+    get_settings.cache_clear()
+
+    for _ in range(5):
+        response = await client.post(
+            "/admin/login",
+            data={"api_key": "wrong"},
+            follow_redirects=False,
+        )
+        assert response.status_code == 401
+
+    response = await client.post(
+        "/admin/login",
+        data={"api_key": "wrong"},
+        follow_redirects=False,
+    )
+    assert response.status_code == 429
 
 
 async def test_admin_channel_and_subscription_crud(
