@@ -73,7 +73,7 @@ so multiple API workers can never trigger duplicate crawls.
 | **M4** | NVD + CISA KEV ingestion with idempotent upserts | ✅ |
 | **M5** | Exploit-DB + EPSS enrichment | ✅ |
 | **M6** | Scheduler worker and crawl run history | ✅ |
-| **M7** | REST API: vulnerabilities, statistics, sources | 🗓 |
+| **M7** | REST API: vulnerabilities, statistics, sources | ✅ |
 | **M8** | Web dashboard | 🗓 |
 | **M9** | Subscription rules and WeCom / email alerts | 🗓 |
 | **M10** | Docker packaging, demo data, `v0.1.0` release | 🗓 |
@@ -115,6 +115,38 @@ rows.
 
 Python 3.10+ is required. The default database is SQLite, so no external
 services are needed.
+
+## API
+
+Start the FastAPI application:
+
+```bash
+vulpulse init-db   # first time only
+vulpulse serve --host 0.0.0.0 --port 8000
+```
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /docs` | Swagger UI and OpenAPI schema |
+| `GET /healthz` | Health and database check |
+| `GET /api/v1/vulns` | Paginated list with search and filters |
+| `GET /api/v1/vulns/{cve_or_id}` | Vulnerability detail with sources, products, CWEs |
+| `GET /api/v1/stats/overview` | Totals, severity breakdown and publication trend |
+| `GET /api/v1/sources` | Source status and last crawl run |
+| `POST /api/v1/admin/crawl` | Trigger one crawl (requires `X-API-Key`) |
+
+Example:
+
+```bash
+curl "http://localhost:8000/api/v1/vulns?severity=critical&kev=true&size=5"
+curl "http://localhost:8000/api/v1/vulns/CVE-2024-0001"
+curl "http://localhost:8000/api/v1/stats/overview?days=30"
+```
+
+Admin requests need `VULPULSE_API_KEY` and an `X-API-Key` header. The admin
+endpoint runs the crawl as a background task in the API process, which is
+convenient for a single-node setup; production deployments should use the
+scheduler worker or the CLI.
 
 ## Scheduler
 

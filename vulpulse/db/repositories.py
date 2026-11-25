@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timedelta
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
-from vulpulse.db.base import utcnow
 from vulpulse.db.models import (
     CrawlRun,
     Cwe,
@@ -19,6 +20,7 @@ from vulpulse.db.models import (
     VulnProduct,
     VulnReference,
 )
+from vulpulse.timeutils import to_naive_utc, utcnow
 
 
 class SourceRepository:
@@ -31,6 +33,19 @@ class SourceRepository:
     async def list_all(self) -> list[Source]:
         result = await self.session.scalars(select(Source).order_by(Source.name))
         return list(result.all())
+
+    async def count_records(self, source_id: int) -> int:
+        statement = select(func.count(SourceRecord.id)).where(SourceRecord.source_id == source_id)
+        return int(await self.session.scalar(statement) or 0)
+
+    async def latest_run(self, source_id: int) -> CrawlRun | None:
+        statement = (
+            select(CrawlRun)
+            .where(CrawlRun.source_id == source_id)
+            .order_by(CrawlRun.started_at.desc())
+            .limit(1)
+        )
+        return await self.session.scalar(statement)
 
     async def get_or_create(
         self,
@@ -109,6 +124,142 @@ class VulnerabilityRepository:
 
     async def count(self) -> int:
         return int(await self.session.scalar(select(func.count(Vulnerability.id))) or 0)
+
+    async def count_in_kev(self) -> int:
+        statement = (
+            select(func.count()).select_from(Vulnerability).where(Vulnerability.in_kev.is_(True))
+        )
+        return int(await self.session.scalar(statement) or 0)
+
+    async def count_with_exploit(self) -> int:
+        statement = (
+            select(func.count())
+            .select_from(Vulnerability)
+            .where(Vulnerability.exploit_available.is_(True))
+        )
+        return int(await self.session.scalar(statement) or 0)
+
+    async def count_with_epss(self) -> int:
+        statement = (
+            select(func.count())
+            .select_from(Vulnerability)
+            .where(Vulnerability.epss_score.is_not(None))
+        )
+        return int(await self.session.scalar(statement) or 0)
+
+    async def severity_counts(self) -> dict[str, int]:
+        statement = select(Vulnerability.severity, func.count()).group_by(Vulnerability.severity)
+        result = await self.session.execute(statement)
+        return {str(severity): int(count) for severity, count in result.all()}
+
+    async def published_trend(self, days: int = 30) -> list[tuple[str, int]]:
+        start = utcnow() - timedelta(days=days)
+        day = func.date(Vulnerability.published_at)
+        statement = (
+            select(day, func.count())
+            .where(
+                Vulnerability.published_at.is_not(None),
+                Vulnerability.published_at >= start,
+            )
+            .group_by(day)
+            .order_by(day)
+        )
+        result = await self.session.execute(statement)
+        return [(str(day_value), int(count)) for day_value, count in result.all()]
+
+    async def search(
+        self,
+        *,
+        q: str | None = None,
+        severity: str | None = None,
+        source: str | None = None,
+        vendor: str | None = None,
+        in_kev: bool | None = None,
+        exploit_available: bool | None = None,
+        cvss_min: float | None = None,
+        epss_min: float | None = None,
+        published_from: datetime | None = None,
+        published_to: datetime | None = None,
+        sort: str = "published_at",
+        order: str = "desc",
+        limit: int = 20,
+        offset: int = 0,
+    ) -> tuple[list[Vulnerability], int]:
+        filters: list[Any] = []
+
+        if q and q.strip():
+            pattern = f"%{q.strip()}%"
+            filters.append(
+                or_(
+                    Vulnerability.cve_id.ilike(pattern),
+                    Vulnerability.title.ilike(pattern),
+                    Vulnerability.description.ilike(pattern),
+                )
+            )
+        if severity:
+            filters.append(Vulnerability.severity == severity)
+        if source:
+            source_records = (
+                select(SourceRecord.vuln_id)
+                .join(Source, Source.id == SourceRecord.source_id)
+                .where(Source.name == source)
+            )
+            filters.append(Vulnerability.id.in_(source_records))
+        if vendor:
+            vendor_links = (
+                select(VulnProduct.vuln_id)
+                .join(Product, Product.id == VulnProduct.product_id)
+                .where(func.lower(Product.vendor) == vendor.lower())
+            )
+            filters.append(Vulnerability.id.in_(vendor_links))
+        if in_kev is not None:
+            filters.append(Vulnerability.in_kev.is_(in_kev))
+        if exploit_available is not None:
+            filters.append(Vulnerability.exploit_available.is_(exploit_available))
+        if cvss_min is not None:
+            filters.append(Vulnerability.cvss_score >= cvss_min)
+        if epss_min is not None:
+            filters.append(Vulnerability.epss_score >= epss_min)
+        if published_from is not None:
+            filters.append(Vulnerability.published_at >= to_naive_utc(published_from))
+        if published_to is not None:
+            filters.append(Vulnerability.published_at <= to_naive_utc(published_to))
+
+        count_statement = select(func.count()).select_from(Vulnerability).where(*filters)
+        total = int(await self.session.scalar(count_statement) or 0)
+
+        sort_columns = {
+            "published_at": Vulnerability.published_at,
+            "modified_at": Vulnerability.modified_at,
+            "cvss_score": Vulnerability.cvss_score,
+            "epss_score": Vulnerability.epss_score,
+            "created_at": Vulnerability.created_at,
+        }
+        sort_column = sort_columns.get(sort, Vulnerability.published_at)
+        ordering = sort_column.desc() if order == "desc" else sort_column.asc()
+
+        statement = (
+            select(Vulnerability)
+            .where(*filters)
+            .order_by(ordering, Vulnerability.id.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+        items = list((await self.session.scalars(statement)).all())
+        return items, total
+
+    async def get_detail(self, identifier: str) -> Vulnerability | None:
+        statement = select(Vulnerability).options(
+            selectinload(Vulnerability.source_records).selectinload(SourceRecord.source),
+            selectinload(Vulnerability.product_links).selectinload(VulnProduct.product),
+            selectinload(Vulnerability.cwe_links).selectinload(VulnCwe.cwe),
+            selectinload(Vulnerability.references),
+        )
+        if identifier.isdigit():
+            statement = statement.where(Vulnerability.id == int(identifier))
+        else:
+            statement = statement.where(Vulnerability.cve_id == identifier.strip().upper())
+        return await self.session.scalar(statement)
 
     async def get_or_create_product(self, vendor: str | None, product: str) -> Product:
         stmt = select(Product).where(func.lower(Product.product) == product.lower())

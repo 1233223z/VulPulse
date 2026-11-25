@@ -128,6 +128,27 @@ def enrich(
 
 
 @app.command()
+def serve(
+    host: str = typer.Option("0.0.0.0", "--host"),
+    port: int = typer.Option(8000, "--port", min=1, max=65535),
+    reload: bool = typer.Option(
+        False,
+        "--reload",
+        help="Enable auto-reload (development only).",
+    ),
+) -> None:
+    """Run the FastAPI application."""
+    import uvicorn
+
+    uvicorn.run(
+        "vulpulse.api.app:app",
+        host=host,
+        port=port,
+        reload=reload,
+    )
+
+
+@app.command()
 def worker(
     once: bool = typer.Option(
         False,

@@ -18,7 +18,7 @@ from vulpulse.db.repositories import (
     VulnerabilityRepository,
 )
 from vulpulse.db.session import Database, get_database
-from vulpulse.timeutils import to_naive_utc
+from vulpulse.timeutils import to_naive_utc, utcnow
 
 
 @dataclass
@@ -185,4 +185,8 @@ class IngestService:
                 error=error,
                 checkpoint=checkpoint,
             )
+            if status == "success":
+                source = await session.get(Source, run.source_id)
+                if source is not None:
+                    source.last_success_at = utcnow()
             await session.commit()
