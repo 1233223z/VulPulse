@@ -13,7 +13,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from vulpulse.analyzer.scorer import RiskWeights, score_risk
 from vulpulse.api.deps import get_session
 from vulpulse.config import get_settings
-from vulpulse.db.repositories import SourceRepository, VulnerabilityRepository
+from vulpulse.db.repositories import (
+    SourceRepository,
+    VendorRepository,
+    VulnerabilityRepository,
+)
 
 WEB_DIR = Path(__file__).resolve().parent
 TEMPLATES_DIR = WEB_DIR / "templates"
@@ -80,6 +84,7 @@ async def vuln_list(
     severity: str | None = None,
     source: str | None = None,
     vendor: str | None = None,
+    product: str | None = None,
     kev: str | None = None,
     exploit: str | None = None,
     page: int = Query(default=1, ge=1),
@@ -93,6 +98,7 @@ async def vuln_list(
         "severity": severity or None,
         "source": source or None,
         "vendor": vendor or None,
+        "product": product or None,
         "in_kev": True if kev_checked else None,
         "exploit_available": True if exploit_checked else None,
     }
@@ -131,6 +137,7 @@ async def vuln_list(
             "severity": severity or "",
             "source": source or "",
             "vendor": vendor or "",
+            "product": product or "",
             "kev_checked": kev_checked,
             "exploit_checked": exploit_checked,
             "sources": sources,
@@ -166,6 +173,59 @@ async def vuln_detail(
         request=request,
         name="vuln_detail.html",
         context={"vuln": vuln, "risk": risk, "active": "vulns"},
+    )
+
+
+@router.get("/vendors", response_class=HTMLResponse)
+async def vendors_page(
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+) -> HTMLResponse:
+    vendors = await VendorRepository(session).list_top(50)
+    return templates.TemplateResponse(
+        request=request,
+        name="vendors.html",
+        context={"vendors": vendors, "active": "vendors"},
+    )
+
+
+@router.get("/vendors/{vendor}", response_class=HTMLResponse)
+async def vendor_detail_page(
+    request: Request,
+    vendor: str,
+    session: AsyncSession = Depends(get_session),
+) -> HTMLResponse:
+    repository = VendorRepository(session)
+    summary = await repository.get_summary(vendor)
+    if summary is None:
+        return templates.TemplateResponse(
+            request=request,
+            name="404.html",
+            context={
+                "identifier": vendor,
+                "message": "Vendor not found",
+                "active": "vendors",
+            },
+            status_code=404,
+        )
+
+    products = await repository.get_products(vendor)
+    top_vulnerabilities, _ = await VulnerabilityRepository(session).search(
+        vendor=vendor,
+        sort="risk_score",
+        order="desc",
+        limit=10,
+    )
+
+    return templates.TemplateResponse(
+        request=request,
+        name="vendor_detail.html",
+        context={
+            "summary": summary,
+            "products": products,
+            "top_vulnerabilities": top_vulnerabilities,
+            "active": "vendors",
+        },
     )
 
 

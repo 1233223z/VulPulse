@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% from "macros.html" import display_title, flags, score, severity_badge, risk_score_badge %}
+
+{% block title %}{{ summary.vendor }} · Vendors · VulPulse{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+  <ol class="breadcrumb small mb-0">
+    <li class="breadcrumb-item"><a href="/">Dashboard</a></li>
+    <li class="breadcrumb-item"><a href="/vendors">Vendors</a></li>
+    <li class="breadcrumb-item active" aria-current="page">{{ summary.vendor }}</li>
+  </ol>
+</nav>
+
+<div class="mb-4">
+  <div class="text-secondary small mb-1">Vendor</div>
+  <h1 class="h3 mb-2">{{ summary.vendor }}</h1>
+  <p class="text-secondary mb-0">
+    {{ "{:,}".format(summary.vulnerabilities) }} vulnerabilities across
+    {{ summary.products }} products.
+  </p>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-3">
+    <div class="card metric-card h-100"><div class="card-body">
+      <div class="text-secondary text-uppercase small">Vulnerabilities</div>
+      <div class="display-6">{{ "{:,}".format(summary.vulnerabilities) }}</div>
+    </div></div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="card metric-card h-100"><div class="card-body">
+      <div class="text-secondary text-uppercase small">Critical / High</div>
+      <div class="display-6">{{ summary.critical }} / {{ summary.high }}</div>
+    </div></div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="card metric-card h-100"><div class="card-body">
+      <div class="text-secondary text-uppercase small">Average risk</div>
+      <div class="display-6">{{ score(summary.avg_risk) }}</div>
+      <div class="small">{{ risk_score_badge(summary.avg_risk) }}</div>
+    </div></div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="card metric-card h-100"><div class="card-body">
+      <div class="text-secondary text-uppercase small">Max risk</div>
+      <div class="display-6">{{ score(summary.max_risk) }}</div>
+      <div class="small">{{ risk_score_badge(summary.max_risk) }}</div>
+    </div></div>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-12 col-xl-4">
+    <div class="card metric-card h-100">
+      <div class="card-body">
+        <h2 class="h6 mb-3">Products</h2>
+        {% if products %}
+        <div class="table-responsive">
+          <table class="table table-sm table-hover align-middle mb-0">
+            <thead><tr><th>Product</th><th>Vulns</th><th>Max risk</th></tr></thead>
+            <tbody>
+              {% for product in products %}
+              <tr>
+                <td>
+                  <a href="/vulns?vendor={{ summary.vendor | urlencode }}&product={{ product.product | urlencode }}">{{ product.product }}</a>
+                </td>
+                <td>{{ "{:,}".format(product.vulnerabilities) }}</td>
+                <td class="text-nowrap">{{ score(product.max_risk) }} {{ risk_score_badge(product.max_risk) }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <p class="text-secondary mb-0">No product mappings available.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-xl-8">
+    <div class="card metric-card h-100">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h2 class="h6 mb-0">Top risk vulnerabilities</h2>
+          <a class="small" href="/vulns?vendor={{ summary.vendor | urlencode }}">View all</a>
+        </div>
+        {% if top_vulnerabilities %}
+        <div class="table-responsive">
+          <table class="table table-sm table-hover align-middle mb-0">
+            <thead><tr><th>CVE</th><th>Title</th><th>Severity</th><th>Risk</th><th>Flags</th></tr></thead>
+            <tbody>
+              {% for vuln in top_vulnerabilities %}
+              <tr>
+                <td class="text-nowrap"><a href="/vulns/{{ vuln.cve_id or vuln.id }}">{{ vuln.cve_id or vuln.id }}</a></td>
+                <td><div class="text-truncate vuln-title">{{ display_title(vuln) }}</div></td>
+                <td>{{ severity_badge(vuln.severity) }}</td>
+                <td class="text-nowrap">{{ score(vuln.risk_score) }} {{ risk_score_badge(vuln.risk_score) }}</td>
+                <td class="text-nowrap">{{ flags(vuln) }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <p class="text-secondary mb-0">No vulnerabilities available.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

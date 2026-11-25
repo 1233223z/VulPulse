@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from typing import Any
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import case, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -186,6 +186,7 @@ class VulnerabilityRepository:
         severity: str | None = None,
         source: str | None = None,
         vendor: str | None = None,
+        product: str | None = None,
         in_kev: bool | None = None,
         exploit_available: bool | None = None,
         cvss_min: float | None = None,
@@ -218,13 +219,16 @@ class VulnerabilityRepository:
                 .where(Source.name == source)
             )
             filters.append(Vulnerability.id.in_(source_records))
-        if vendor:
-            vendor_links = (
-                select(VulnProduct.vuln_id)
-                .join(Product, Product.id == VulnProduct.product_id)
-                .where(func.lower(Product.vendor) == vendor.lower())
+        if vendor or product:
+            product_links = select(VulnProduct.vuln_id).join(
+                Product,
+                Product.id == VulnProduct.product_id,
             )
-            filters.append(Vulnerability.id.in_(vendor_links))
+            if vendor:
+                product_links = product_links.where(func.lower(Product.vendor) == vendor.lower())
+            if product:
+                product_links = product_links.where(func.lower(Product.product) == product.lower())
+            filters.append(Vulnerability.id.in_(product_links))
         if in_kev is not None:
             filters.append(Vulnerability.in_kev.is_(in_kev))
         if exploit_available is not None:
@@ -378,6 +382,120 @@ class VulnerabilityRepository:
         self.session.add(created)
         await self.session.flush()
         return created
+
+
+class VendorRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self.session = session
+
+    @staticmethod
+    def _aggregate_columns() -> tuple[Any, ...]:
+        return (
+            func.lower(Product.vendor).label("vendor"),
+            func.count(func.distinct(Vulnerability.id)).label("vulnerabilities"),
+            func.count(func.distinct(Product.id)).label("products"),
+            func.coalesce(
+                func.sum(case((Vulnerability.risk_level == "critical", 1), else_=0)),
+                0,
+            ).label("critical"),
+            func.coalesce(
+                func.sum(case((Vulnerability.risk_level == "high", 1), else_=0)),
+                0,
+            ).label("high"),
+            func.coalesce(
+                func.sum(case((Vulnerability.risk_level == "medium", 1), else_=0)),
+                0,
+            ).label("medium"),
+            func.coalesce(
+                func.sum(case((Vulnerability.risk_level == "low", 1), else_=0)),
+                0,
+            ).label("low"),
+            func.coalesce(
+                func.sum(case((Vulnerability.risk_level == "minimal", 1), else_=0)),
+                0,
+            ).label("minimal"),
+            func.avg(Vulnerability.risk_score).label("avg_risk"),
+            func.max(Vulnerability.risk_score).label("max_risk"),
+        )
+
+    @classmethod
+    def _aggregate_query(cls) -> Any:
+        return (
+            select(*cls._aggregate_columns())
+            .select_from(Product)
+            .join(VulnProduct, VulnProduct.product_id == Product.id)
+            .join(Vulnerability, Vulnerability.id == VulnProduct.vuln_id)
+            .where(Product.vendor.is_not(None))
+            .group_by(func.lower(Product.vendor))
+        )
+
+    async def list_top(self, limit: int = 20) -> list[dict[str, Any]]:
+        statement = (
+            self._aggregate_query()
+            .order_by(
+                func.count(func.distinct(Vulnerability.id)).desc(),
+                func.max(Vulnerability.risk_score).desc(),
+            )
+            .limit(limit)
+        )
+        rows = (await self.session.execute(statement)).all()
+        return [self._normalize(row) for row in rows]
+
+    async def get_summary(self, vendor: str) -> dict[str, Any] | None:
+        statement = self._aggregate_query().where(
+            func.lower(Product.vendor) == vendor.strip().lower()
+        )
+        row = (await self.session.execute(statement)).first()
+        return self._normalize(row) if row is not None else None
+
+    async def get_products(self, vendor: str) -> list[dict[str, Any]]:
+        statement = (
+            select(
+                Product.product,
+                func.count(func.distinct(Vulnerability.id)).label("vulnerabilities"),
+                func.avg(Vulnerability.risk_score).label("avg_risk"),
+                func.max(Vulnerability.risk_score).label("max_risk"),
+            )
+            .select_from(Product)
+            .join(VulnProduct, VulnProduct.product_id == Product.id)
+            .join(Vulnerability, Vulnerability.id == VulnProduct.vuln_id)
+            .where(func.lower(Product.vendor) == vendor.strip().lower())
+            .group_by(Product.product)
+            .order_by(
+                func.count(func.distinct(Vulnerability.id)).desc(),
+                func.max(Vulnerability.risk_score).desc(),
+            )
+        )
+        rows = (await self.session.execute(statement)).all()
+        return [
+            {
+                "product": row.product,
+                "vulnerabilities": int(row.vulnerabilities or 0),
+                "avg_risk": round(float(row.avg_risk), 2) if row.avg_risk is not None else None,
+                "max_risk": round(float(row.max_risk), 2) if row.max_risk is not None else None,
+            }
+            for row in rows
+        ]
+
+    @staticmethod
+    def _normalize(row: Any) -> dict[str, Any]:
+        mapping = row._mapping
+        return {
+            "vendor": mapping["vendor"],
+            "vulnerabilities": int(mapping["vulnerabilities"] or 0),
+            "products": int(mapping["products"] or 0),
+            "critical": int(mapping["critical"] or 0),
+            "high": int(mapping["high"] or 0),
+            "medium": int(mapping["medium"] or 0),
+            "low": int(mapping["low"] or 0),
+            "minimal": int(mapping["minimal"] or 0),
+            "avg_risk": round(float(mapping["avg_risk"]), 2)
+            if mapping["avg_risk"] is not None
+            else None,
+            "max_risk": round(float(mapping["max_risk"]), 2)
+            if mapping["max_risk"] is not None
+            else None,
+        }
 
 
 class ChannelRepository:

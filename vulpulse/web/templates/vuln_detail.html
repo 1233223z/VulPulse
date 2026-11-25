@@ -130,8 +130,14 @@
             <tbody>
               {% for link in vuln.product_links %}
               <tr>
-                <td>{{ link.product.vendor or "—" }}</td>
-                <td>{{ link.product.product }}</td>
+                <td>
+                  {% if link.product.vendor %}
+                  <a href="/vendors/{{ link.product.vendor | urlencode }}">{{ link.product.vendor }}</a>
+                  {% else %}—{% endif %}
+                </td>
+                <td>
+                  <a href="/vulns?vendor={{ link.product.vendor | urlencode }}&product={{ link.product.product | urlencode }}">{{ link.product.product }}</a>
+                </td>
                 <td class="text-secondary small">{{ link.version_range or "—" }}</td>
               </tr>
               {% endfor %}

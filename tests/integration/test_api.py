@@ -39,6 +39,7 @@ async def test_list_vulns_defaults_to_newest_first(client: AsyncClient) -> None:
         ({"exploit": "true"}, "CVE-2024-0001"),
         ({"q": "struts"}, "CVE-2024-0001"),
         ({"vendor": "apache"}, "CVE-2024-0001"),
+        ({"product": "struts"}, "CVE-2024-0001"),
         ({"source": "nvd"}, "CVE-2024-0001"),
         ({"cvss_min": 9}, "CVE-2024-0001"),
         ({"epss_min": 0.5}, "CVE-2024-0001"),
@@ -139,6 +140,37 @@ async def test_stats_overview(client: AsyncClient) -> None:
     assert data["exploit_available"] == 1
     assert data["epss_scored"] == 1
     assert len(data["trend"]) == 2
+
+
+async def test_vendors(client: AsyncClient) -> None:
+    response = await client.get("/api/v1/vendors")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    vendor = data[0]
+    assert vendor["vendor"] == "apache"
+    assert vendor["vulnerabilities"] == 1
+    assert vendor["products"] == 1
+    assert vendor["critical"] == 1
+    assert vendor["max_risk"] == 95.0
+
+
+async def test_vendor_detail(client: AsyncClient) -> None:
+    response = await client.get("/api/v1/vendors/apache")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["vendor"] == "apache"
+    assert data["products"][0]["product"] == "struts"
+    assert data["products"][0]["vulnerabilities"] == 1
+    assert data["top_vulnerabilities"][0]["cve_id"] == "CVE-2024-0001"
+
+
+async def test_vendor_not_found(client: AsyncClient) -> None:
+    response = await client.get("/api/v1/vendors/does-not-exist")
+
+    assert response.status_code == 404
 
 
 async def test_sources(client: AsyncClient) -> None:

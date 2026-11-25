@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% from "macros.html" import risk_score_badge, score %}
+
+{% block title %}Vendors · VulPulse{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-4">
+  <div>
+    <h1 class="h3 mb-1">Vendors</h1>
+    <p class="text-secondary mb-0">Vulnerability volume and risk concentration by vendor.</p>
+  </div>
+  <a class="btn btn-sm btn-outline-secondary" href="/vulns">Browse vulnerabilities</a>
+</div>
+
+<div class="card metric-card">
+  <div class="card-body">
+    {% if vendors %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Vendor</th>
+            <th>Products</th>
+            <th>Vulnerabilities</th>
+            <th>Critical</th>
+            <th>High</th>
+            <th>Avg risk</th>
+            <th>Max risk</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for vendor in vendors %}
+          <tr>
+            <td><a href="/vendors/{{ vendor.vendor | urlencode }}">{{ vendor.vendor }}</a></td>
+            <td>{{ vendor.products }}</td>
+            <td>{{ "{:,}".format(vendor.vulnerabilities) }}</td>
+            <td>{{ vendor.critical }}</td>
+            <td>{{ vendor.high }}</td>
+            <td class="text-nowrap">{{ score(vendor.avg_risk) }} {{ risk_score_badge(vendor.avg_risk) }}</td>
+            <td class="text-nowrap">{{ score(vendor.max_risk) }} {{ risk_score_badge(vendor.max_risk) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-center text-secondary py-5">
+      No vendor mappings yet. Run a crawl first.
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

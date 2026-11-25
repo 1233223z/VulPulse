@@ -8,6 +8,16 @@
   <span class="badge text-bg-{{ classes.get(level, "secondary") }}">{{ level or "unscored" }}</span>
 {%- endmacro %}
 
+{% macro risk_score_badge(score) -%}
+  {%- if score is none -%}{{ risk_badge(None) }}
+  {%- elif score >= 80 -%}{{ risk_badge("critical") }}
+  {%- elif score >= 60 -%}{{ risk_badge("high") }}
+  {%- elif score >= 40 -%}{{ risk_badge("medium") }}
+  {%- elif score >= 20 -%}{{ risk_badge("low") }}
+  {%- else -%}{{ risk_badge("minimal") }}
+  {%- endif -%}
+{%- endmacro %}
+
 {% macro display_title(vuln) -%}
   {%- if vuln.title -%}
     {{ vuln.title }}

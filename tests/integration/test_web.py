@@ -44,6 +44,38 @@ async def test_vulnerability_detail_not_found(client: AsyncClient) -> None:
     assert "Vulnerability not found" in response.text
 
 
+async def test_vendors_page(client: AsyncClient) -> None:
+    response = await client.get("/vendors")
+
+    assert response.status_code == 200
+    assert "apache" in response.text
+    assert "Vendors" in response.text
+
+
+async def test_vendor_detail_page(client: AsyncClient) -> None:
+    response = await client.get("/vendors/apache")
+
+    assert response.status_code == 200
+    assert "struts" in response.text
+    assert "CVE-2024-0001" in response.text
+    assert "Top risk vulnerabilities" in response.text
+
+
+async def test_vendor_not_found_page(client: AsyncClient) -> None:
+    response = await client.get("/vendors/does-not-exist")
+
+    assert response.status_code == 404
+    assert "Vendor not found" in response.text
+
+
+async def test_product_filter(client: AsyncClient) -> None:
+    response = await client.get("/vulns", params={"product": "struts"})
+
+    assert response.status_code == 200
+    assert "CVE-2024-0001" in response.text
+    assert "CVE-2024-0002" not in response.text
+
+
 async def test_sources_page(client: AsyncClient) -> None:
     response = await client.get("/sources")
 

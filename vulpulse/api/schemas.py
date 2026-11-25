@@ -82,6 +82,33 @@ class VulnDetail(VulnSummary):
     references: list[ReferenceOut]
 
 
+class VendorSummary(BaseModel):
+    vendor: str
+    vulnerabilities: int
+    products: int
+    critical: int
+    high: int
+    medium: int
+    low: int
+    minimal: int
+    avg_risk: float | None
+    max_risk: float | None
+
+
+class VendorProduct(BaseModel):
+    product: str
+    vulnerabilities: int
+    avg_risk: float | None
+    max_risk: float | None
+
+
+class VendorDetail(BaseModel):
+    vendor: str
+    summary: VendorSummary
+    products: list[VendorProduct]
+    top_vulnerabilities: list[VulnSummary]
+
+
 class SeverityCounts(BaseModel):
     critical: int = 0
     high: int = 0
