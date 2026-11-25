@@ -9,7 +9,7 @@ Collect · Normalize · Deduplicate · Score · Alert
 [![CI](https://github.com/1233223z/VulPulse/actions/workflows/ci.yml/badge.svg)](https://github.com/1233223z/VulPulse/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Status](https://img.shields.io/badge/status-v0.4.0-orange)
+![Status](https://img.shields.io/badge/status-v0.5.0-orange)
 
 </div>
 
@@ -19,7 +19,7 @@ them across sources, enriches them with exploit intelligence, and exposes the
 result through a REST API, a web dashboard, and configurable alerts
 (WeCom / email).
 
-> **Status:** `v0.4.0`. The API and database schema may change before `v1.0`.
+> **Status:** `v0.5.0`. The API and database schema may change before `v1.0`.
 
 ## Screenshots
 
@@ -97,8 +97,8 @@ so multiple API workers can never trigger duplicate crawls.
 
 Phase 2 (in progress) adds a configurable 0-100 risk score (done),
 vendor/product correlation (done), Markdown/HTML reports (done), a subscription
-management UI and stronger rate control. Phase 3 adds a vulnerability graph,
-optional LLM summaries and a plugin system for additional sources.
+management UI (done) and stronger rate control. Phase 3 adds a vulnerability
+graph, optional LLM summaries and a plugin system for additional sources.
 
 ## Quickstart (development)
 
@@ -210,6 +210,7 @@ The same process serves the dashboard at `http://localhost:8000/`:
 - detail pages with affected products, CWEs, references and source records
 - vendor and product analytics with risk aggregation and correlated views
 - one-click Markdown/HTML export that preserves the active filters
+- admin area for notification channels and subscriptions
 - crawler status page
 
 Bootstrap and Chart.js are vendored under `vulpulse/web/static/vendor`, so the
@@ -326,6 +327,31 @@ The vulnerability list page has **Export MD / Export HTML** buttons that keep th
 active filters. HTML reports are standalone, print-friendly and escape every
 untrusted field.
 
+## Admin UI
+
+The web UI includes an admin area for managing notification channels and
+subscriptions. It uses the same `VULPULSE_API_KEY` as the admin API, signs
+session cookies and verifies CSRF tokens on every state-changing form.
+
+```bash
+export VULPULSE_API_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
+export VULPULSE_SESSION_SECRET="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
+vulpulse serve
+```
+
+Open `http://localhost:8000/admin` and sign in with the API key. From there you
+can:
+
+- create WeCom or email channels
+- create subscriptions with severity, keyword, vendor/product/source,
+  KEV/exploit, CVSS/EPSS and time-window filters
+- enable, disable or delete channels and subscriptions
+
+Set `VULPULSE_SESSION_HTTPS_ONLY=true` when serving over HTTPS. If
+`VULPULSE_SESSION_SECRET` is unset, an ephemeral secret is generated and admin
+sessions reset when the process restarts. The admin UI is intended for trusted
+networks or a reverse proxy; it does not implement multi-user accounts.
+
 ## Configuration
 
 All settings use the `VULPULSE_` prefix and can be provided via environment
@@ -336,7 +362,9 @@ variables or `.env`. See [`.env.example`](.env.example) for the full list.
 | `VULPULSE_ENV` | `dev` | `dev`, `test` or `prod` |
 | `VULPULSE_LOG_LEVEL` | `INFO` | Console/file log level |
 | `VULPULSE_DATABASE_URL` | `sqlite+aiosqlite:///./data/vulpulse.db` | SQLAlchemy URL |
-| `VULPULSE_API_KEY` | empty | Protects admin endpoints |
+| `VULPULSE_API_KEY` | empty | Protects admin API and admin UI |
+| `VULPULSE_SESSION_SECRET` | empty | Signs admin session cookies (set a stable random value) |
+| `VULPULSE_SESSION_HTTPS_ONLY` | `false` | Mark session cookies HTTPS-only |
 | `VULPULSE_NVD_API_KEY` | empty | Raises NVD rate limit from 5 to 50 req/30s |
 | `VULPULSE_WECOM_WEBHOOK_URL` | empty | WeCom alert channel |
 | `VULPULSE_SMTP_*` | empty | Email alert channel |

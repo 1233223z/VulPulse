@@ -5,6 +5,23 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-11-25
+
+### Added
+
+- Admin web UI at `/admin` with sign-in using the existing `VULPULSE_API_KEY`.
+- CSRF-protected forms for creating, enabling, disabling and deleting WeCom/email
+  channels and alert subscriptions.
+- Subscription forms covering severities, keywords, vendors, products, sources,
+  KEV, public exploits, CVSS, EPSS and publication-window filters.
+- Configurable session signing secret and HTTPS-only session cookies.
+
+### Security
+
+- Signed, HttpOnly, SameSite=Lax session cookies and per-session CSRF tokens.
+- Open-redirect protection for post-login destinations.
+- Admin UI is disabled when no API key is configured.
+
 ## [0.4.0] - 2026-11-25
 
 ### Added
@@ -75,6 +92,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   data volume and health checks.
 - CI across Python 3.10, 3.12 and 3.14, plus a container build job.
 
+[0.5.0]: https://github.com/1233223z/VulPulse/releases/tag/v0.5.0
 [0.4.0]: https://github.com/1233223z/VulPulse/releases/tag/v0.4.0
 [0.3.0]: https://github.com/1233223z/VulPulse/releases/tag/v0.3.0
 [0.2.0]: https://github.com/1233223z/VulPulse/releases/tag/v0.2.0
