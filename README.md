@@ -6,9 +6,10 @@
 
 Collect · Normalize · Deduplicate · Score · Alert
 
+[![CI](https://github.com/1233223z/VulPulse/actions/workflows/ci.yml/badge.svg)](https://github.com/1233223z/VulPulse/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Status](https://img.shields.io/badge/status-alpha-orange)
+![Status](https://img.shields.io/badge/status-v0.1.0-orange)
 
 </div>
 
@@ -18,8 +19,7 @@ them across sources, enriches them with exploit intelligence, and exposes the
 result through a REST API, a web dashboard, and configurable alerts
 (WeCom / email).
 
-> **Status:** early development (`v0.1.0` in progress). The API and database
-> schema may change before `v1.0`.
+> **Status:** `v0.1.0`. The API and database schema may change before `v1.0`.
 
 ## Screenshots
 
@@ -85,7 +85,7 @@ so multiple API workers can never trigger duplicate crawls.
 | **M7** | REST API: vulnerabilities, statistics, sources | ✅ |
 | **M8** | Web dashboard | ✅ |
 | **M9** | Subscription rules and WeCom / email alerts | ✅ |
-| **M10** | Docker packaging, demo data, `v0.1.0` release | 🗓 |
+| **M10** | Docker packaging and `v0.1.0` release | ✅ |
 
 Phase 2 adds a configurable 0–100 risk score, vendor/product correlation,
 user-defined subscriptions, export to Markdown/HTML and stronger rate control.
@@ -124,6 +124,36 @@ rows.
 
 Python 3.10+ is required. The default database is SQLite, so no external
 services are needed.
+
+## Docker
+
+```bash
+cp .env.example .env   # configure API keys, alerts and SMTP as needed
+docker compose -f deploy/docker-compose.yml --env-file .env up -d --build
+```
+
+Open `http://localhost:8000/`.
+
+The stack has three services:
+
+| Service | Role |
+|---|---|
+| `init` | Applies Alembic migrations, then exits |
+| `api` | Serves the API and dashboard on port 8000 |
+| `worker` | Runs scheduled crawls, enrichment and alert delivery |
+
+The named volume `vulpulse-data` persists the SQLite database and logs. Run
+**one** worker: SQLite is single-writer and multiple workers would duplicate
+scheduled jobs.
+
+```bash
+docker compose -f deploy/docker-compose.yml logs -f worker
+docker compose -f deploy/docker-compose.yml down      # keeps data
+docker compose -f deploy/docker-compose.yml down -v   # deletes data
+```
+
+Tagged releases publish a container image to
+`ghcr.io/1233223z/vulpulse`.
 
 ## API
 
@@ -264,17 +294,23 @@ See the [disclaimer](#disclaimer) below.
 ## Project layout
 
 ```
-vulpulse/
-├── crawler/      # source adapters, HTTP client, raw models
-├── analyzer/     # normalization, merging, scoring
-├── db/           # SQLAlchemy models, sessions, repositories
-├── notifier/     # subscription rules and delivery channels
-├── scheduler/    # APScheduler jobs and worker entry point
-├── api/          # FastAPI application and routers
-├── web/          # Jinja2 templates and static assets
-├── config.py     # environment-driven settings
-├── logging.py    # loguru configuration
-└── cli.py        # Typer entry point
+VulPulse/
+├── vulpulse/
+│   ├── crawler/      # source adapters, HTTP client, raw models
+│   ├── analyzer/     # normalization, merging, scoring
+│   ├── db/           # SQLAlchemy models, sessions, repositories, migrations
+│   ├── notifier/     # subscription rules and delivery channels
+│   ├── scheduler/    # APScheduler jobs and worker entry point
+│   ├── api/          # FastAPI application and routers
+│   ├── web/          # Jinja2 templates and static assets
+│   ├── config.py     # environment-driven settings
+│   ├── logging.py    # loguru configuration
+│   └── cli.py        # Typer entry point
+├── deploy/           # Dockerfile and docker-compose.yml
+├── docs/             # screenshots
+├── tests/            # unit and integration tests
+├── CHANGELOG.md
+└── SECURITY.md
 ```
 
 ## Contributing

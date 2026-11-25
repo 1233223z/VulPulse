@@ -1,0 +1,69 @@
+name: vulpulse
+
+x-common-env: &common-env
+  VULPULSE_DATABASE_URL: sqlite+aiosqlite:////app/data/vulpulse.db
+  VULPULSE_DATA_DIR: /app/data
+  VULPULSE_LOG_DIR: /app/data/logs
+  VULPULSE_PUBLIC_BASE_URL: ${VULPULSE_PUBLIC_BASE_URL:-http://localhost:8000}
+  VULPULSE_API_KEY: ${VULPULSE_API_KEY:-}
+  VULPULSE_NVD_API_KEY: ${VULPULSE_NVD_API_KEY:-}
+  VULPULSE_WECOM_WEBHOOK_URL: ${VULPULSE_WECOM_WEBHOOK_URL:-}
+  VULPULSE_SMTP_HOST: ${VULPULSE_SMTP_HOST:-}
+  VULPULSE_SMTP_PORT: ${VULPULSE_SMTP_PORT:-587}
+  VULPULSE_SMTP_USERNAME: ${VULPULSE_SMTP_USERNAME:-}
+  VULPULSE_SMTP_PASSWORD: ${VULPULSE_SMTP_PASSWORD:-}
+  VULPULSE_SMTP_FROM: ${VULPULSE_SMTP_FROM:-}
+  VULPULSE_SMTP_USE_TLS: ${VULPULSE_SMTP_USE_TLS:-true}
+  VULPULSE_SMTP_USE_SSL: ${VULPULSE_SMTP_USE_SSL:-false}
+  VULPULSE_SCHEDULER_RUN_ON_START: ${VULPULSE_SCHEDULER_RUN_ON_START:-true}
+  VULPULSE_NOTIFY_MAX_ATTEMPTS: ${VULPULSE_NOTIFY_MAX_ATTEMPTS:-3}
+  TZ: ${TZ:-UTC}
+
+services:
+  init:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    image: vulpulse:local
+    command: ["vulpulse", "init-db"]
+    environment: *common-env
+    volumes:
+      - vulpulse-data:/app/data
+    restart: "no"
+
+  api:
+    image: vulpulse:local
+    command: ["vulpulse", "serve", "--host", "0.0.0.0", "--port", "8000"]
+    depends_on:
+      init:
+        condition: service_completed_successfully
+    environment: *common-env
+    volumes:
+      - vulpulse-data:/app/data
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=5).read()"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  worker:
+    image: vulpulse:local
+    command: ["vulpulse", "worker"]
+    depends_on:
+      init:
+        condition: service_completed_successfully
+    environment: *common-env
+    volumes:
+      - vulpulse-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  vulpulse-data:
