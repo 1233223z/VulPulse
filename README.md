@@ -349,9 +349,11 @@ can:
 
 Set `VULPULSE_SESSION_HTTPS_ONLY=true` when serving over HTTPS. If
 `VULPULSE_SESSION_SECRET` is unset, an ephemeral secret is generated and admin
-sessions reset when the process restarts. Failed logins are rate-limited to five
-attempts per five minutes per client IP. The admin UI is intended for trusted
-networks or a reverse proxy; it does not implement multi-user accounts.
+sessions reset when the process restarts. Sessions expire after eight hours and
+are invalidated when `VULPULSE_API_KEY` rotates. Failed logins are rate-limited
+to five attempts per five minutes per client IP, with a global cap. The admin UI
+is intended for trusted networks or a reverse proxy; it does not implement
+multi-user accounts.
 
 ## Configuration
 
@@ -366,6 +368,8 @@ variables or `.env`. See [`.env.example`](.env.example) for the full list.
 | `VULPULSE_API_KEY` | empty | Protects admin API and admin UI |
 | `VULPULSE_SESSION_SECRET` | empty | Signs admin session cookies (set a stable random value) |
 | `VULPULSE_SESSION_HTTPS_ONLY` | `false` | Mark session cookies HTTPS-only |
+| `VULPULSE_SESSION_MAX_AGE_HOURS` | `8` | Admin session lifetime |
+| `VULPULSE_WECOM_ALLOWED_HOSTS` | `qyapi.weixin.qq.com` | HTTPS host allowlist for WeCom webhooks |
 | `VULPULSE_NVD_API_KEY` | empty | Raises NVD rate limit from 5 to 50 req/30s |
 | `VULPULSE_WECOM_WEBHOOK_URL` | empty | WeCom alert channel |
 | `VULPULSE_SMTP_*` | empty | Email alert channel |
@@ -424,6 +428,10 @@ Issues and pull requests are welcome. Please run `ruff check .`,
   vendored frontend assets against OSV.
 - CI runs the same audit, and Dependabot keeps Python, Action and Docker base
   image dependencies current.
+- SMTP uses a verified TLS context (`ssl.create_default_context`) for both
+  STARTTLS and SMTPS.
+- WeCom webhooks require HTTPS and an allowlisted host; webhook URLs and keys
+  are stripped from delivery errors and HTTP client logs.
 - `vulpulse serve` binds to `127.0.0.1` by default. Pass `--host 0.0.0.0` only
   when you intend to expose it, preferably behind an HTTPS reverse proxy.
 - Report vulnerabilities through GitHub Security Advisories as described in

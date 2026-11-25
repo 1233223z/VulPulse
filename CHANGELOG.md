@@ -9,11 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Escaped Markdown metacharacters in report titles and filter descriptions to
-  prevent link and raw-HTML injection in exported Markdown.
-- Added per-client-IP rate limiting for admin login (five attempts per five
-  minutes) and removed a production `assert`.
-- Upgraded pytest to `>=9.0.3` for CVE-2025-71176 (development dependency).
+- SMTP STARTTLS and SMTPS now use `ssl.create_default_context()` so server
+  certificates and hostnames are verified; this protects SMTP credentials from
+  network attackers.
+- WeCom webhooks must use HTTPS and an allowlisted host
+  (`VULPULSE_WECOM_ALLOWED_HOSTS`), preventing admin-configured SSRF. Delivery
+  errors and HTTP client logs no longer include the webhook URL or key.
+- Admin login is rate-limited per client IP and globally, and non-ASCII API keys
+  fail cleanly instead of raising a 500.
+- Admin sessions expire after eight hours and are bound to a fingerprint of the
+  API key; rotating the key invalidates existing sessions.
+- Escaped Markdown metacharacters in report identifiers, titles and filter
+  descriptions to prevent link and raw-HTML injection in exported Markdown.
+- Removed a production `assert` and upgraded pytest to `>=9.0.3` for
+  CVE-2025-71176 (development dependency).
 
 ### Changed
 
@@ -21,6 +30,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `--host 0.0.0.0` explicitly for LAN or container access.
 - Admin responses send `Cache-Control: no-store` and all responses send a
   restrictive `Permissions-Policy`.
+- Data and log directories are created with owner-only (`0700`) permissions.
+- Docker builds use longer pip timeouts and retries.
 
 ### Security
 
