@@ -5,6 +5,23 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.2] - 2026-11-25
+
+### Fixed
+
+- Crawler responses are streamed with a 64 MiB cap; redirects are restricted
+  to the same HTTPS host and a maximum of three hops, preventing redirect-based
+  SSRF and memory exhaustion. EPSS gzip decompression has the same cap.
+- Fixed double gzip decoding in the shared HTTP client introduced by bounded
+  streaming.
+- Updated the default EPSS URL to its final HTTPS host, avoiding the old
+  cross-domain redirect chain.
+
+### Changed
+
+- Docker Compose credentials are scoped to the services that need them; the
+  migration service no longer receives API, webhook or SMTP secrets.
+
 ## [0.5.1] - 2026-11-25
 
 ### Fixed
@@ -125,6 +142,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   data volume and health checks.
 - CI across Python 3.10, 3.12 and 3.14, plus a container build job.
 
+[0.5.2]: https://github.com/1233223z/VulPulse/releases/tag/v0.5.2
 [0.5.1]: https://github.com/1233223z/VulPulse/releases/tag/v0.5.1
 [0.5.0]: https://github.com/1233223z/VulPulse/releases/tag/v0.5.0
 [0.4.0]: https://github.com/1233223z/VulPulse/releases/tag/v0.4.0

@@ -9,7 +9,7 @@ Collect · Normalize · Deduplicate · Score · Alert
 [![CI](https://github.com/1233223z/VulPulse/actions/workflows/ci.yml/badge.svg)](https://github.com/1233223z/VulPulse/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Status](https://img.shields.io/badge/status-v0.5.1-orange)
+![Status](https://img.shields.io/badge/status-v0.5.2-orange)
 
 </div>
 
@@ -19,7 +19,7 @@ them across sources, enriches them with exploit intelligence, and exposes the
 result through a REST API, a web dashboard, and configurable alerts
 (WeCom / email).
 
-> **Status:** `v0.5.1`. The API and database schema may change before `v1.0`.
+> **Status:** `v0.5.2`. The API and database schema may change before `v1.0`.
 
 ## Screenshots
 
@@ -432,8 +432,13 @@ Issues and pull requests are welcome. Please run `ruff check .`,
   STARTTLS and SMTPS.
 - WeCom webhooks require HTTPS and an allowlisted host; webhook URLs and keys
   are stripped from delivery errors and HTTP client logs.
+- Crawler responses are capped at 64 MiB and redirects are limited to the same
+  HTTPS host (three hops), preventing redirect-based SSRF and memory exhaustion.
+  EPSS decompression is capped as well.
 - `vulpulse serve` binds to `127.0.0.1` by default. Pass `--host 0.0.0.0` only
   when you intend to expose it, preferably behind an HTTPS reverse proxy.
+- Compose credentials are scoped per service; the migration service no longer
+  receives API, webhook or SMTP secrets.
 - Report vulnerabilities through GitHub Security Advisories as described in
   [`SECURITY.md`](SECURITY.md).
 
