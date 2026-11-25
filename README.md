@@ -9,7 +9,7 @@ Collect · Normalize · Deduplicate · Score · Alert
 [![CI](https://github.com/1233223z/VulPulse/actions/workflows/ci.yml/badge.svg)](https://github.com/1233223z/VulPulse/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Status](https://img.shields.io/badge/status-v0.1.1-orange)
+![Status](https://img.shields.io/badge/status-v0.2.0-orange)
 
 </div>
 
@@ -19,13 +19,15 @@ them across sources, enriches them with exploit intelligence, and exposes the
 result through a REST API, a web dashboard, and configurable alerts
 (WeCom / email).
 
-> **Status:** `v0.1.1`. The API and database schema may change before `v1.0`.
+> **Status:** `v0.2.0`. The API and database schema may change before `v1.0`.
 
 ## Screenshots
 
 ![VulPulse dashboard](docs/dashboard.png)
 
 ![Vulnerability list](docs/vulnerabilities.png)
+
+![Vulnerability detail with risk breakdown](docs/detail.png)
 
 Screenshots use 31k+ real records collected by VulPulse from NVD, CISA KEV,
 Exploit-DB and FIRST EPSS.
@@ -87,10 +89,10 @@ so multiple API workers can never trigger duplicate crawls.
 | **M9** | Subscription rules and WeCom / email alerts | ✅ |
 | **M10** | Docker packaging and `v0.1.0` release | ✅ |
 
-Phase 2 adds a configurable 0–100 risk score, vendor/product correlation,
-user-defined subscriptions, export to Markdown/HTML and stronger rate control.
-Phase 3 adds a vulnerability graph, optional LLM summaries and a plugin system
-for additional sources.
+Phase 2 (in progress) adds a configurable 0-100 risk score (done), vendor/product
+correlation, subscription management UI, export to Markdown/HTML and stronger
+rate control. Phase 3 adds a vulnerability graph, optional LLM summaries and a
+plugin system for additional sources.
 
 ## Quickstart (development)
 
@@ -199,6 +201,37 @@ The same process serves the dashboard at `http://localhost:8000/`:
 
 Bootstrap and Chart.js are vendored under `vulpulse/web/static/vendor`, so the
 dashboard works without a CDN and offline.
+
+## Risk scoring
+
+Every vulnerability receives an explainable 0-100 risk score. The score is a
+weighted average of five signals:
+
+| Signal | Default weight | Input |
+|---|---|---|
+| CVSS | 40% | `cvss_score * 10`; falls back to severity when CVSS is missing |
+| EPSS | 25% | FIRST EPSS probability × 100 |
+| KEV | 20% | 100 when the CVE is in CISA KEV |
+| Public exploit | 10% | 100 when Exploit-DB has an entry |
+| Recency | 5% | Linear decay over `VULPULSE_RISK_RECENCY_DAYS` (90 by default) |
+
+Weights are configurable through `VULPULSE_RISK_WEIGHT_*` and normalized to sum
+to one. Risk levels are `critical` (≥80), `high` (≥60), `medium` (≥40), `low`
+(≥20) and `minimal`.
+
+Scores are computed on ingest, refreshed after every EPSS enrichment, every six
+hours by the worker, and on demand:
+
+```bash
+vulpulse score
+```
+
+The API exposes `risk_score`, `risk_level`, `risk_min` and `sort=risk_score`;
+the vulnerability page shows the full component breakdown:
+
+```bash
+curl "http://localhost:8000/api/v1/vulns?risk_min=80&sort=risk_score"
+```
 
 ## Scheduler
 

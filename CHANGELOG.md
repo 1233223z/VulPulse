@@ -5,6 +5,20 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-11-25
+
+### Added
+
+- Explainable 0-100 risk scoring combining CVSS, EPSS, CISA KEV, public exploit
+  availability and recency, with configurable and normalized weights.
+- `risk_score` and `risk_level` columns, an Alembic migration and a `vulpulse
+  score` backfill/refresh command.
+- Risk scoring on ingest, after EPSS enrichment and in a scheduled
+  `score:refresh` worker job.
+- API fields `risk_score` / `risk_level` / `risk_breakdown`, a `risk_min` filter
+  and `sort=risk_score`; statistics now include risk-level counts.
+- Risk column and full component breakdown in the web dashboard.
+
 ## [0.1.1] - 2026-11-25
 
 ### Fixed
@@ -37,5 +51,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   data volume and health checks.
 - CI across Python 3.10, 3.12 and 3.14, plus a container build job.
 
+[0.2.0]: https://github.com/1233223z/VulPulse/releases/tag/v0.2.0
 [0.1.1]: https://github.com/1233223z/VulPulse/releases/tag/v0.1.1
 [0.1.0]: https://github.com/1233223z/VulPulse/releases/tag/v0.1.0
