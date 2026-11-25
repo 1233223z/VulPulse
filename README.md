@@ -9,7 +9,7 @@ Collect · Normalize · Deduplicate · Score · Alert
 [![CI](https://github.com/1233223z/VulPulse/actions/workflows/ci.yml/badge.svg)](https://github.com/1233223z/VulPulse/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Status](https://img.shields.io/badge/status-v0.2.0-orange)
+![Status](https://img.shields.io/badge/status-v0.3.0-orange)
 
 </div>
 
@@ -19,7 +19,7 @@ them across sources, enriches them with exploit intelligence, and exposes the
 result through a REST API, a web dashboard, and configurable alerts
 (WeCom / email).
 
-> **Status:** `v0.2.0`. The API and database schema may change before `v1.0`.
+> **Status:** `v0.3.0`. The API and database schema may change before `v1.0`.
 
 ## Screenshots
 
@@ -28,6 +28,10 @@ result through a REST API, a web dashboard, and configurable alerts
 ![Vulnerability list](docs/vulnerabilities.png)
 
 ![Vulnerability detail with risk breakdown](docs/detail.png)
+
+![Vendor analytics](docs/vendors.png)
+
+![Vendor detail](docs/vendor_detail.png)
 
 Screenshots use 31k+ real records collected by VulPulse from NVD, CISA KEV,
 Exploit-DB and FIRST EPSS.
@@ -89,10 +93,10 @@ so multiple API workers can never trigger duplicate crawls.
 | **M9** | Subscription rules and WeCom / email alerts | ✅ |
 | **M10** | Docker packaging and `v0.1.0` release | ✅ |
 
-Phase 2 (in progress) adds a configurable 0-100 risk score (done), vendor/product
-correlation, subscription management UI, export to Markdown/HTML and stronger
-rate control. Phase 3 adds a vulnerability graph, optional LLM summaries and a
-plugin system for additional sources.
+Phase 2 (in progress) adds a configurable 0-100 risk score (done),
+vendor/product correlation (done), a subscription management UI, export to
+Markdown/HTML and stronger rate control. Phase 3 adds a vulnerability graph,
+optional LLM summaries and a plugin system for additional sources.
 
 ## Quickstart (development)
 
@@ -174,6 +178,8 @@ vulpulse serve --host 0.0.0.0 --port 8000
 | `GET /api/v1/vulns/{cve_or_id}` | Vulnerability detail with sources, products, CWEs |
 | `GET /api/v1/stats/overview` | Totals, severity breakdown and publication trend |
 | `GET /api/v1/sources` | Source status and last crawl run |
+| `GET /api/v1/vendors` | Vendor volume and risk aggregation |
+| `GET /api/v1/vendors/{vendor}` | Vendor products and top-risk vulnerabilities |
 | `POST /api/v1/admin/crawl` | Trigger one crawl (requires `X-API-Key`) |
 
 Example:
@@ -182,6 +188,8 @@ Example:
 curl "http://localhost:8000/api/v1/vulns?severity=critical&kev=true&size=5"
 curl "http://localhost:8000/api/v1/vulns/CVE-2024-0001"
 curl "http://localhost:8000/api/v1/stats/overview?days=30"
+curl "http://localhost:8000/api/v1/vendors?limit=10"
+curl "http://localhost:8000/api/v1/vendors/apache"
 ```
 
 Admin requests need `VULPULSE_API_KEY` and an `X-API-Key` header. The admin
@@ -197,6 +205,7 @@ The same process serves the dashboard at `http://localhost:8000/`:
 - 30-day publication trend
 - vulnerability search, filters and pagination
 - detail pages with affected products, CWEs, references and source records
+- vendor and product analytics with risk aggregation and correlated views
 - crawler status page
 
 Bootstrap and Chart.js are vendored under `vulpulse/web/static/vendor`, so the
