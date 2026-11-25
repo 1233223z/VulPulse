@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 from pathlib import Path
 
 import typer
@@ -124,6 +125,29 @@ def enrich(
 
     stats = asyncio.run(_run())
     typer.echo(f"matched={stats.matched} updated={stats.updated}")
+
+
+@app.command()
+def worker(
+    once: bool = typer.Option(
+        False,
+        "--once",
+        help="Run every scheduled job once and exit.",
+    ),
+) -> None:
+    """Start the standalone scheduler worker."""
+    import asyncio
+
+    from vulpulse.scheduler.worker import SchedulerWorker
+
+    scheduler_worker = SchedulerWorker()
+
+    if once:
+        asyncio.run(scheduler_worker.run_all_once())
+        return
+
+    with contextlib.suppress(KeyboardInterrupt):
+        asyncio.run(scheduler_worker.run_forever())
 
 
 if __name__ == "__main__":

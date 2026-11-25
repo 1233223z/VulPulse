@@ -72,7 +72,7 @@ so multiple API workers can never trigger duplicate crawls.
 | **M3** | Crawler framework: source base class, registry, rate limiting, retries | ✅ |
 | **M4** | NVD + CISA KEV ingestion with idempotent upserts | ✅ |
 | **M5** | Exploit-DB + EPSS enrichment | ✅ |
-| **M6** | Scheduler worker and crawl run history | 🗓 |
+| **M6** | Scheduler worker and crawl run history | ✅ |
 | **M7** | REST API: vulnerabilities, statistics, sources | 🗓 |
 | **M8** | Web dashboard | 🗓 |
 | **M9** | Subscription rules and WeCom / email alerts | 🗓 |
@@ -115,6 +115,27 @@ rows.
 
 Python 3.10+ is required. The default database is SQLite, so no external
 services are needed.
+
+## Scheduler
+
+Run the scheduler in its own process:
+
+```bash
+vulpulse init-db   # first time only
+vulpulse worker
+```
+
+| Job | Default interval | Behavior |
+|---|---|---|
+| `crawl:nvd` | 60 min | Incremental, using the last successful checkpoint |
+| `crawl:cisa_kev` | 6 h | Full KEV feed sync |
+| `crawl:exploitdb` | 24 h | Full Exploit-DB CSV sync |
+| `enrich:epss` | 24 h | Updates existing CVEs with EPSS scores |
+
+Intervals are configurable through `VULPULSE_*` environment variables. Every
+run is recorded in `crawl_runs`; a failing source is logged and does not stop
+the scheduler. `vulpulse worker --once` runs all jobs once and exits, which is
+handy for Cron or a manual refresh.
 
 ## Configuration
 

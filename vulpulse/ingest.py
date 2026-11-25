@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
+from sqlalchemy import select
+
 from vulpulse.analyzer.normalizer import normalize_raw
 from vulpulse.crawler.base import BaseSource
 from vulpulse.crawler.models import RawVuln
@@ -16,6 +18,7 @@ from vulpulse.db.repositories import (
     VulnerabilityRepository,
 )
 from vulpulse.db.session import Database, get_database
+from vulpulse.timeutils import to_naive_utc
 
 
 @dataclass
@@ -53,6 +56,7 @@ class IngestService:
         batch_size: int = 100,
     ) -> IngestStats:
         stats = IngestStats()
+        latest_modified: datetime | None = None
         run_id = await self._start_run(source)
 
         try:
@@ -64,6 +68,12 @@ class IngestService:
                 repo = VulnerabilityRepository(session)
                 async for raw in source.fetch(since=since, checkpoint=checkpoint):
                     stats.fetched += 1
+                    modified = to_naive_utc(raw.modified_at)
+                    if modified is not None and (
+                        latest_modified is None or modified > latest_modified
+                    ):
+                        latest_modified = modified
+
                     created = await self._ingest_one(repo, source_model, raw, stats)
                     if created:
                         stats.created += 1
@@ -78,8 +88,31 @@ class IngestService:
             await self._finish_run(run_id, status="failed", stats=stats, error=str(exc))
             raise
 
-        await self._finish_run(run_id, status="success", stats=stats)
+        checkpoint = {"last_modified": latest_modified.isoformat()} if latest_modified else None
+        await self._finish_run(
+            run_id,
+            status="success",
+            stats=stats,
+            checkpoint=checkpoint,
+        )
         return stats
+
+    async def last_checkpoint(self, source_name: str) -> dict[str, Any] | None:
+        """Return the checkpoint of the newest successful run for a source."""
+        async with self.database.session() as session:
+            statement = (
+                select(CrawlRun.checkpoint)
+                .join(Source, Source.id == CrawlRun.source_id)
+                .where(
+                    Source.name == source_name,
+                    CrawlRun.status == "success",
+                    CrawlRun.checkpoint.is_not(None),
+                )
+                .order_by(CrawlRun.finished_at.desc())
+                .limit(1)
+            )
+            checkpoint = await session.scalar(statement)
+        return checkpoint if isinstance(checkpoint, dict) else None
 
     async def _ingest_one(
         self,
@@ -139,6 +172,7 @@ class IngestService:
         status: str,
         stats: IngestStats,
         error: str | None = None,
+        checkpoint: dict[str, Any] | None = None,
     ) -> None:
         async with self.database.session() as session:
             run = await session.get(CrawlRun, run_id)
@@ -149,5 +183,6 @@ class IngestService:
                 status=status,
                 stats=stats.as_dict(),
                 error=error,
+                checkpoint=checkpoint,
             )
             await session.commit()
