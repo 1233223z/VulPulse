@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from datetime import timedelta
 
 from apscheduler.triggers.interval import IntervalTrigger
@@ -100,6 +101,37 @@ async def test_run_once_dispatches_both_job_kinds(tmp_path) -> None:
         await database.dispose()
 
     assert calls == ["crawl:test", "enrich:test", "notify:test"]
+
+
+async def test_jobs_are_serialized(tmp_path) -> None:
+    settings = Settings(_env_file=None, scheduler_run_on_start=False)  # type: ignore[call-arg]
+    database = Database(f"sqlite+aiosqlite:///{tmp_path / 'serialized.db'}")
+    active = 0
+    max_active = 0
+
+    async def fake_job(_: JobSchedule) -> None:
+        nonlocal active, max_active
+        active += 1
+        max_active = max(max_active, active)
+        await asyncio.sleep(0.01)
+        active -= 1
+
+    worker = SchedulerWorker(
+        settings=settings,
+        database=database,
+        schedules=[],
+        crawl_job=fake_job,
+    )
+
+    try:
+        await asyncio.gather(
+            worker.run_once(JobSchedule("crawl:one", "crawl", "nvd", 60)),
+            worker.run_once(JobSchedule("crawl:two", "crawl", "cisa_kev", 60)),
+        )
+    finally:
+        await database.dispose()
+
+    assert max_active == 1
 
 
 async def test_job_failure_does_not_propagate(tmp_path) -> None:

@@ -45,6 +45,9 @@ class SchedulerWorker:
         self._crawl_job = crawl_job
         self._enrich_job = enrich_job
         self._notify_job = notify_job
+        # SQLite is single-writer. Serialize all scheduled work in this worker
+        # so two sources cannot write at the same time.
+        self._job_lock = asyncio.Lock()
         self.scheduler = AsyncIOScheduler(timezone=timezone.utc)
 
     def register_jobs(self) -> None:
@@ -90,38 +93,39 @@ class SchedulerWorker:
         await self._run(schedule)
 
     async def _run(self, schedule: JobSchedule) -> None:
-        logger.info("Running scheduled job: {}", schedule.job_id)
-        try:
-            if schedule.kind == "crawl":
-                result = (
-                    await self._crawl_job(schedule)
-                    if self._crawl_job is not None
-                    else await run_crawl_job(
-                        schedule.target,
-                        settings=self.settings,
-                        database=self.database,
-                        lookback_days=schedule.lookback_days,
+        async with self._job_lock:
+            logger.info("Running scheduled job: {}", schedule.job_id)
+            try:
+                if schedule.kind == "crawl":
+                    result = (
+                        await self._crawl_job(schedule)
+                        if self._crawl_job is not None
+                        else await run_crawl_job(
+                            schedule.target,
+                            settings=self.settings,
+                            database=self.database,
+                            lookback_days=schedule.lookback_days,
+                        )
                     )
-                )
-            elif schedule.kind == "enrich":
-                result = (
-                    await self._enrich_job(schedule)
-                    if self._enrich_job is not None
-                    else await run_epss_job(
-                        settings=self.settings,
-                        database=self.database,
+                elif schedule.kind == "enrich":
+                    result = (
+                        await self._enrich_job(schedule)
+                        if self._enrich_job is not None
+                        else await run_epss_job(
+                            settings=self.settings,
+                            database=self.database,
+                        )
                     )
-                )
-            else:
-                result = (
-                    await self._notify_job(schedule)
-                    if self._notify_job is not None
-                    else await run_notify_job(
-                        settings=self.settings,
-                        database=self.database,
+                else:
+                    result = (
+                        await self._notify_job(schedule)
+                        if self._notify_job is not None
+                        else await run_notify_job(
+                            settings=self.settings,
+                            database=self.database,
+                        )
                     )
-                )
-            logger.info("Job {} finished: {}", schedule.job_id, result)
-        except Exception:
-            # A single failing source must not stop the scheduler.
-            logger.exception("Job {} failed", schedule.job_id)
+                logger.info("Job {} finished: {}", schedule.job_id, result)
+            except Exception:
+                # A single failing source must not stop the scheduler.
+                logger.exception("Job {} failed", schedule.job_id)
