@@ -5,6 +5,17 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-11-25
+
+### Added
+
+- Filterable Markdown and HTML vulnerability reports with summary cards,
+  risk/KEV/exploit columns and safe escaping of untrusted fields.
+- `vulpulse export` CLI with the same filters as the query API.
+- `GET /api/v1/export` returning the report as a downloadable attachment.
+- Export MD / Export HTML buttons on the vulnerability list that preserve the
+  active filters.
+
 ## [0.3.0] - 2026-11-25
 
 ### Added
@@ -64,6 +75,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   data volume and health checks.
 - CI across Python 3.10, 3.12 and 3.14, plus a container build job.
 
+[0.4.0]: https://github.com/1233223z/VulPulse/releases/tag/v0.4.0
 [0.3.0]: https://github.com/1233223z/VulPulse/releases/tag/v0.3.0
 [0.2.0]: https://github.com/1233223z/VulPulse/releases/tag/v0.2.0
 [0.1.1]: https://github.com/1233223z/VulPulse/releases/tag/v0.1.1

@@ -9,7 +9,7 @@ Collect · Normalize · Deduplicate · Score · Alert
 [![CI](https://github.com/1233223z/VulPulse/actions/workflows/ci.yml/badge.svg)](https://github.com/1233223z/VulPulse/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Status](https://img.shields.io/badge/status-v0.3.0-orange)
+![Status](https://img.shields.io/badge/status-v0.4.0-orange)
 
 </div>
 
@@ -19,7 +19,7 @@ them across sources, enriches them with exploit intelligence, and exposes the
 result through a REST API, a web dashboard, and configurable alerts
 (WeCom / email).
 
-> **Status:** `v0.3.0`. The API and database schema may change before `v1.0`.
+> **Status:** `v0.4.0`. The API and database schema may change before `v1.0`.
 
 ## Screenshots
 
@@ -32,6 +32,8 @@ result through a REST API, a web dashboard, and configurable alerts
 ![Vendor analytics](docs/vendors.png)
 
 ![Vendor detail](docs/vendor_detail.png)
+
+![Exported HTML report](docs/report.png)
 
 Screenshots use 31k+ real records collected by VulPulse from NVD, CISA KEV,
 Exploit-DB and FIRST EPSS.
@@ -94,8 +96,8 @@ so multiple API workers can never trigger duplicate crawls.
 | **M10** | Docker packaging and `v0.1.0` release | ✅ |
 
 Phase 2 (in progress) adds a configurable 0-100 risk score (done),
-vendor/product correlation (done), a subscription management UI, export to
-Markdown/HTML and stronger rate control. Phase 3 adds a vulnerability graph,
+vendor/product correlation (done), Markdown/HTML reports (done), a subscription
+management UI and stronger rate control. Phase 3 adds a vulnerability graph,
 optional LLM summaries and a plugin system for additional sources.
 
 ## Quickstart (development)
@@ -180,6 +182,7 @@ vulpulse serve --host 0.0.0.0 --port 8000
 | `GET /api/v1/sources` | Source status and last crawl run |
 | `GET /api/v1/vendors` | Vendor volume and risk aggregation |
 | `GET /api/v1/vendors/{vendor}` | Vendor products and top-risk vulnerabilities |
+| `GET /api/v1/export` | Markdown or HTML report with the same filters |
 | `POST /api/v1/admin/crawl` | Trigger one crawl (requires `X-API-Key`) |
 
 Example:
@@ -206,6 +209,7 @@ The same process serves the dashboard at `http://localhost:8000/`:
 - vulnerability search, filters and pagination
 - detail pages with affected products, CWEs, references and source records
 - vendor and product analytics with risk aggregation and correlated views
+- one-click Markdown/HTML export that preserves the active filters
 - crawler status page
 
 Bootstrap and Chart.js are vendored under `vulpulse/web/static/vendor`, so the
@@ -298,6 +302,29 @@ Deliveries are deduplicated per `(subscription, vulnerability, channel)`, so a
 CVE is never sent twice. Failed sends are retried up to
 `VULPULSE_NOTIFY_MAX_ATTEMPTS`; successful and failed attempts are visible in the
 `deliveries` table. The scheduler runs the `notify:alerts` job every 5 minutes.
+
+## Reports
+
+Export filtered vulnerability reports as Markdown or HTML:
+
+```bash
+vulpulse export --format md --output report.md --risk-min 60
+vulpulse export --format html --output report.html --severity critical --kev
+```
+
+Filters mirror the query API: `--q`, `--severity`, `--source`, `--vendor`,
+`--product`, `--kev`, `--exploit`, `--cvss-min`, `--epss-min`, `--risk-min`,
+`--since-days`, `--sort`, `--order` and `--limit`.
+
+The HTTP endpoint returns the report as an attachment:
+
+```bash
+curl -OJ "http://localhost:8000/api/v1/export?format=md&risk_min=60"
+```
+
+The vulnerability list page has **Export MD / Export HTML** buttons that keep the
+active filters. HTML reports are standalone, print-friendly and escape every
+untrusted field.
 
 ## Configuration
 
