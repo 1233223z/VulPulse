@@ -28,8 +28,8 @@ async def test_metrics_can_be_disabled(monkeypatch) -> None:
 
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         metrics = await client.get("/metrics")
-        health = await client.get("/healthz")
+        index = await client.get("/api")
 
     assert metrics.status_code == 404
-    assert health.status_code == 200
-    assert health.headers["X-Response-Time-ms"]
+    assert index.status_code == 200
+    assert index.headers["X-Response-Time-ms"]
