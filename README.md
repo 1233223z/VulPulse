@@ -9,7 +9,7 @@ Collect · Normalize · Deduplicate · Score · Alert
 [![CI](https://github.com/1233223z/VulPulse/actions/workflows/ci.yml/badge.svg)](https://github.com/1233223z/VulPulse/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Status](https://img.shields.io/badge/status-v0.9.0-orange)
+![Status](https://img.shields.io/badge/status-v0.10.0-orange)
 
 </div>
 
@@ -19,7 +19,7 @@ them across sources, enriches them with exploit intelligence, and exposes the
 result through a REST API, a web dashboard, and configurable alerts
 (WeCom / email).
 
-> **Status:** `v0.9.0`. The API and database schema may change before `v1.0`.
+> **Status:** `v0.10.0`. The API and database schema may change before `v1.0`.
 
 ## Screenshots
 
@@ -103,9 +103,9 @@ scaling path, see [docs/architecture.md](docs/architecture.md).
 Phase 2 adds a configurable 0-100 risk score (done), vendor/product correlation
 (done), Markdown/HTML reports (done), a subscription management UI (done) and
 API rate limiting (done). Phase 3 adds a source plugin system (done), a
-vulnerability relationship graph (done) and optional LLM summaries. Operational
-readiness adds Prometheus metrics, request IDs, latency headers, architecture
-notes, benchmark tooling and a coverage gate (done).
+vulnerability relationship graph (done) and optional AI summaries (done).
+Operational readiness adds Prometheus metrics, request IDs, latency headers,
+architecture notes, benchmark tooling and a coverage gate (done).
 
 ## Quickstart (development)
 
@@ -213,6 +213,7 @@ vulpulse serve --host 0.0.0.0 --port 8000
 | `GET /api/v1/plugins` | Installed source plugins and their schedules |
 | `GET /metrics` | Prometheus metrics (when enabled) |
 | `POST /api/v1/admin/crawl` | Trigger one crawl (requires `X-API-Key`) |
+| `POST /api/v1/admin/vulns/{id}/summary` | Generate/cache an AI summary (requires `X-API-Key`) |
 
 Example:
 
@@ -313,6 +314,37 @@ curl "http://localhost:8000/api/v1/vulns/CVE-2024-0001/graph?related=20"
 Open the HTML view at `/vulns/<cve-or-id>/graph`. Graph rendering is
 server-side SVG with no CDN or JavaScript dependency, so it works in the same
 offline environment as the dashboard.
+
+## AI summaries (optional)
+
+AI summaries are disabled by default. Enable them only when you are comfortable
+sending bounded vulnerability metadata to Anthropic:
+
+```bash
+export VULPULSE_LLM_ENABLED=true
+export VULPULSE_LLM_API_KEY="sk-ant-..."
+export VULPULSE_LLM_MODEL=claude-opus-5-5
+
+vulpulse summarize --cve CVE-2024-0001
+```
+
+The summary is cached on the vulnerability row and shown on its detail page.
+Use `--refresh` (or `?refresh=true` on the admin endpoint) to regenerate it.
+The admin endpoint is protected by `VULPULSE_API_KEY`:
+
+```bash
+curl -X POST "http://localhost:8000/api/v1/admin/vulns/CVE-2024-0001/summary" \
+  -H "X-API-Key: $VULPULSE_API_KEY"
+```
+
+Only structured fields (CVE/title/description, severity/CVSS/EPSS, KEV and
+exploit flags, products, CWEs and source count) are sent; raw source records
+and references are not. The input is size-bounded, the output is capped, and
+the prompt treats all vulnerability text as untrusted data so descriptions
+cannot redirect the model. Summaries are AI-generated and must be verified
+against the original sources. No summary is generated automatically in the
+background, and no data leaves the deployment unless you enable and trigger
+this feature. See [SECURITY.md](SECURITY.md) for the privacy boundary.
 
 ## Observability
 
@@ -547,6 +579,13 @@ variables or `.env`. See [`.env.example`](.env.example) for the full list.
 | `VULPULSE_LOG_LEVEL` | `INFO` | Console/file log level |
 | `VULPULSE_METRICS_ENABLED` | `true` | Expose Prometheus metrics at `/metrics` |
 | `VULPULSE_PLUGINS_ENABLED` | `true` | Discover third-party source plugins |
+| `VULPULSE_LLM_ENABLED` | `false` | Enable optional Anthropic summaries |
+| `VULPULSE_LLM_API_KEY` | empty | Anthropic API key; required when enabled |
+| `VULPULSE_LLM_MODEL` | `claude-opus-5-5` | Summary model |
+| `VULPULSE_LLM_EFFORT` | `low` | Summary effort level |
+| `VULPULSE_LLM_MAX_INPUT_CHARS` | `12000` | Bounded summary input |
+| `VULPULSE_LLM_MAX_TOKENS` | `1024` | Summary output cap |
+| `VULPULSE_LLM_TIMEOUT_SECONDS` | `60` | Anthropic request timeout |
 | `VULPULSE_DATABASE_URL` | `sqlite+aiosqlite:///./data/vulpulse.db` | SQLAlchemy URL |
 | `VULPULSE_API_KEY` | empty | Protects admin API and admin UI |
 | `VULPULSE_SESSION_SECRET` | empty | Signs admin session cookies (set a stable random value) |
@@ -594,6 +633,7 @@ VulPulse/
 │   ├── scheduler/    # APScheduler jobs and worker entry point
 │   ├── api/          # FastAPI application, routers and Prometheus metrics
 │   ├── web/          # Jinja2 templates, static assets and graph layout
+│   ├── ai/           # optional Claude-generated vulnerability summaries
 │   ├── plugins.py    # source plugin discovery and metadata
 │   ├── graph.py      # bounded vulnerability relationship graph
 │   ├── config.py     # environment-driven settings
@@ -639,6 +679,9 @@ opening a PR. Commit messages follow
   `VULPULSE_PLUGINS_ENABLED=false` when third-party discovery is not wanted.
 - `/metrics` can expose traffic patterns. Restrict it at the reverse proxy or
   disable it with `VULPULSE_METRICS_ENABLED=false`.
+- AI summaries are disabled by default. Enabling them sends bounded
+  vulnerability metadata to Anthropic; the API key is never logged, the
+  endpoint is admin-only, and source text is treated as untrusted input.
 - Swagger UI and the OpenAPI schema are disabled in `prod` unless
   `VULPULSE_DOCS_ENABLED=true`.
 - `vulpulse serve` binds to `127.0.0.1` by default. Pass `--host 0.0.0.0` only

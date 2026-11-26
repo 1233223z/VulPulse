@@ -5,6 +5,28 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.0] - 2026-11-26
+
+### Added
+
+- Optional, admin-triggered AI summaries using the Anthropic Messages API and
+  the official Python SDK.
+- Cached `ai_summary`, `ai_summary_model` and `ai_summary_at` columns with an
+  Alembic migration.
+- `vulpulse summarize --cve ...` and
+  `POST /api/v1/admin/vulns/{cve_or_id}/summary` with explicit refresh.
+- AI summary card on the vulnerability detail page and summary fields in the
+  detail API.
+- Bounded input, output caps, prompt-injection instructions and safe
+  provider-error mapping.
+
+### Security
+
+- AI summaries are disabled by default and never generated in the background.
+- Only structured metadata is sent to Anthropic; raw source records and
+  references are excluded.
+- The API key is never logged; summaries are rendered as escaped text.
+
 ## [0.9.0] - 2026-11-26
 
 ### Added
@@ -246,6 +268,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   data volume and health checks.
 - CI across Python 3.10, 3.12 and 3.14, plus a container build job.
 
+[0.10.0]: https://github.com/1233223z/VulPulse/releases/tag/v0.10.0
 [0.9.0]: https://github.com/1233223z/VulPulse/releases/tag/v0.9.0
 [0.8.0]: https://github.com/1233223z/VulPulse/releases/tag/v0.8.0
 [0.7.0]: https://github.com/1233223z/VulPulse/releases/tag/v0.7.0

@@ -19,7 +19,7 @@ source (NVD, CISA, Exploit-DB, FIRST).
 
 ## Supported versions
 
-The latest `0.9.x` release receives security fixes. Older releases may not be
+The latest `0.10.x` release receives security fixes. Older releases may not be
 supported.
 
 ## Security model
@@ -42,6 +42,9 @@ supported.
 - **Plugin → process**: source plugins are imported into the API/worker process
   and can execute arbitrary code. Only installed, trusted distributions are
   discovered; `VULPULSE_PLUGINS_ENABLED=false` disables third-party discovery.
+- **Admin → LLM provider**: when AI summaries are enabled, an authenticated
+  admin action sends bounded vulnerability metadata to Anthropic. The provider
+  key is a secret; summaries are untrusted output and are rendered as text.
 
 ### Implemented controls
 
@@ -59,6 +62,9 @@ supported.
   pinned to commit SHAs; Docker base image pinned by digest.
 - Source plugins are version-checked against `PLUGIN_API_VERSION` and loaded
   independently, so one broken plugin cannot stop the other sources.
+- AI summaries are opt-in and admin-triggered; input is size-bounded, the
+  system prompt treats vulnerability text as untrusted data, and output is
+  capped and escaped in the dashboard.
 - Escaped Markdown/HTML report output and security headers on HTTP responses.
 
 ### Residual risks
@@ -73,6 +79,9 @@ supported.
   database. Protect the data directory (`0700`) and database backups.
 - Third-party vulnerability data may be incomplete or inaccurate; VulPulse does
   not independently verify vendor claims.
+- Enabling AI summaries sends selected metadata to Anthropic and may incur API
+  costs. Review the provider's terms and your own data-handling policy first.
+  AI summaries can be wrong; they are not a substitute for source review.
 - Public deployments should terminate HTTPS at a reverse proxy, set
   `VULPULSE_SESSION_HTTPS_ONLY=true`, and restrict `/admin` and `/api/v1/admin`
   to trusted networks.
