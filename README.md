@@ -9,7 +9,7 @@ Collect · Normalize · Deduplicate · Score · Alert
 [![CI](https://github.com/1233223z/VulPulse/actions/workflows/ci.yml/badge.svg)](https://github.com/1233223z/VulPulse/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Status](https://img.shields.io/badge/status-v0.6.0-orange)
+![Status](https://img.shields.io/badge/status-v0.7.0-orange)
 
 </div>
 
@@ -19,7 +19,7 @@ them across sources, enriches them with exploit intelligence, and exposes the
 result through a REST API, a web dashboard, and configurable alerts
 (WeCom / email).
 
-> **Status:** `v0.6.0`. The API and database schema may change before `v1.0`.
+> **Status:** `v0.7.0`. The API and database schema may change before `v1.0`.
 
 ## Screenshots
 
@@ -32,6 +32,8 @@ result through a REST API, a web dashboard, and configurable alerts
 ![Vendor analytics](docs/vendors.png)
 
 ![Vendor detail](docs/vendor_detail.png)
+
+![Relationship graph](docs/graph.png)
 
 ![Exported HTML report](docs/report.png)
 
@@ -98,7 +100,7 @@ so multiple API workers can never trigger duplicate crawls.
 Phase 2 adds a configurable 0-100 risk score (done), vendor/product correlation
 (done), Markdown/HTML reports (done), a subscription management UI (done) and
 API rate limiting (done). Phase 3 adds a source plugin system (done), a
-vulnerability graph and optional LLM summaries.
+vulnerability relationship graph (done) and optional LLM summaries.
 
 ## Quickstart (development)
 
@@ -197,6 +199,7 @@ vulpulse serve --host 0.0.0.0 --port 8000
 | `GET /healthz` | Health and database check |
 | `GET /api/v1/vulns` | Paginated list with search and filters |
 | `GET /api/v1/vulns/{cve_or_id}` | Vulnerability detail with sources, products, CWEs |
+| `GET /api/v1/vulns/{cve_or_id}/graph` | Bounded relationship graph |
 | `GET /api/v1/stats/overview` | Totals, severity breakdown and publication trend |
 | `GET /api/v1/sources` | Source status and last crawl run |
 | `GET /api/v1/vendors` | Vendor volume and risk aggregation |
@@ -210,6 +213,7 @@ Example:
 ```bash
 curl "http://localhost:8000/api/v1/vulns?severity=critical&kev=true&size=5"
 curl "http://localhost:8000/api/v1/vulns/CVE-2024-0001"
+curl "http://localhost:8000/api/v1/vulns/CVE-2024-0001/graph"
 curl "http://localhost:8000/api/v1/stats/overview?days=30"
 curl "http://localhost:8000/api/v1/vendors?limit=10"
 curl "http://localhost:8000/api/v1/vendors/apache"
@@ -241,6 +245,8 @@ The same process serves the dashboard at `http://localhost:8000/`:
 - 30-day publication trend
 - vulnerability search, filters and pagination
 - detail pages with affected products, CWEs, references and source records
+- offline relationship graph linking a CVE to products, weaknesses, sources and
+  related vulnerabilities
 - vendor and product analytics with risk aggregation and correlated views
 - one-click Markdown/HTML export that preserves the active filters
 - admin area for notification channels and subscriptions
@@ -279,6 +285,28 @@ the vulnerability page shows the full component breakdown:
 ```bash
 curl "http://localhost:8000/api/v1/vulns?risk_min=80&sort=risk_score"
 ```
+
+## Relationship graph
+
+Every vulnerability detail page links to an offline relationship graph. The
+graph centers on the CVE and connects:
+
+- affected products
+- CWE weaknesses
+- source records that reported the vulnerability
+- related vulnerabilities sharing a displayed product or CWE
+
+The view is bounded to keep large CVE families readable, and the API returns
+the same nodes and edges as JSON:
+
+```bash
+curl "http://localhost:8000/api/v1/vulns/CVE-2024-0001/graph"
+curl "http://localhost:8000/api/v1/vulns/CVE-2024-0001/graph?related=20"
+```
+
+Open the HTML view at `/vulns/<cve-or-id>/graph`. Graph rendering is
+server-side SVG with no CDN or JavaScript dependency, so it works in the same
+offline environment as the dashboard.
 
 ## Scheduler
 
@@ -508,8 +536,9 @@ VulPulse/
 │   ├── notifier/     # subscription rules and delivery channels
 │   ├── scheduler/    # APScheduler jobs and worker entry point
 │   ├── api/          # FastAPI application and routers
-│   ├── web/          # Jinja2 templates and static assets
+│   ├── web/          # Jinja2 templates, static assets and graph layout
 │   ├── plugins.py    # source plugin discovery and metadata
+│   ├── graph.py      # bounded vulnerability relationship graph
 │   ├── config.py     # environment-driven settings
 │   ├── logging.py    # loguru configuration
 │   └── cli.py        # Typer entry point

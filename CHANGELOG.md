@@ -5,6 +5,23 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-11-26
+
+### Added
+
+- Bounded vulnerability relationship graph centered on a CVE: affected
+  products, CWE weaknesses, source records and related vulnerabilities sharing
+  a displayed product or CWE.
+- `GET /api/v1/vulns/{cve_or_id}/graph` with a configurable related-node limit.
+- Offline server-rendered SVG graph page linked from every vulnerability detail
+  page, with node risk colors, tooltips, legends and JSON export.
+- Related-vulnerability lookup ordered by risk score.
+
+### Changed
+
+- The graph is deliberately capped by product, CWE, source and related-CVE
+  counts so a single hub vulnerability cannot produce an unbounded response.
+
 ## [0.6.0] - 2026-11-26
 
 ### Added
@@ -198,6 +215,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   data volume and health checks.
 - CI across Python 3.10, 3.12 and 3.14, plus a container build job.
 
+[0.7.0]: https://github.com/1233223z/VulPulse/releases/tag/v0.7.0
 [0.6.0]: https://github.com/1233223z/VulPulse/releases/tag/v0.6.0
 [0.5.3]: https://github.com/1233223z/VulPulse/releases/tag/v0.5.3
 [0.5.2]: https://github.com/1233223z/VulPulse/releases/tag/v0.5.2
