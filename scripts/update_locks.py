@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import argparse
 import os
 import shutil
 import subprocess
@@ -23,6 +24,14 @@ def find_uv() -> str | None:
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--upgrade",
+        action="store_true",
+        help="Upgrade locked packages to the newest versions allowed by pyproject.toml",
+    )
+    args = parser.parse_args()
+
     uv = find_uv()
     if not uv:
         print(f"uv is required to update locks. Install it with: {UV_INSTALL_HINT}")
@@ -40,6 +49,8 @@ def main() -> int:
         "--unsafe-package",
         "vulpulse",
     ]
+    if args.upgrade:
+        base.append("--upgrade")
     subprocess.run([*base, "-o", "requirements.txt"], cwd=ROOT, check=True)
     subprocess.run(
         [*base, "--extra", "dev", "-o", "requirements-dev.txt"],
