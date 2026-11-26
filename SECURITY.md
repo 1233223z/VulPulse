@@ -19,7 +19,7 @@ source (NVD, CISA, Exploit-DB, FIRST).
 
 ## Supported versions
 
-The latest `0.5.x` release receives security fixes. Older releases may not be
+The latest `0.6.x` release receives security fixes. Older releases may not be
 supported.
 
 ## Security model
@@ -39,6 +39,9 @@ supported.
   match an allowlist; SMTP uses verified TLS.
 - **Container → host**: the image runs as a non-root user; the SQLite database
   and logs live in a dedicated volume.
+- **Plugin → process**: source plugins are imported into the API/worker process
+  and can execute arbitrary code. Only installed, trusted distributions are
+  discovered; `VULPULSE_PLUGINS_ENABLED=false` disables third-party discovery.
 
 ### Implemented controls
 
@@ -54,6 +57,8 @@ supported.
   keys are excluded from logs and delivery errors.
 - Hash-locked dependencies installed with `--require-hashes`; GitHub Actions
   pinned to commit SHAs; Docker base image pinned by digest.
+- Source plugins are version-checked against `PLUGIN_API_VERSION` and loaded
+  independently, so one broken plugin cannot stop the other sources.
 - Escaped Markdown/HTML report output and security headers on HTTP responses.
 
 ### Residual risks

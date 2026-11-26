@@ -9,7 +9,7 @@ Collect · Normalize · Deduplicate · Score · Alert
 [![CI](https://github.com/1233223z/VulPulse/actions/workflows/ci.yml/badge.svg)](https://github.com/1233223z/VulPulse/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Status](https://img.shields.io/badge/status-v0.5.3-orange)
+![Status](https://img.shields.io/badge/status-v0.6.0-orange)
 
 </div>
 
@@ -19,7 +19,7 @@ them across sources, enriches them with exploit intelligence, and exposes the
 result through a REST API, a web dashboard, and configurable alerts
 (WeCom / email).
 
-> **Status:** `v0.5.3`. The API and database schema may change before `v1.0`.
+> **Status:** `v0.6.0`. The API and database schema may change before `v1.0`.
 
 ## Screenshots
 
@@ -97,8 +97,8 @@ so multiple API workers can never trigger duplicate crawls.
 
 Phase 2 adds a configurable 0-100 risk score (done), vendor/product correlation
 (done), Markdown/HTML reports (done), a subscription management UI (done) and
-API rate limiting (done). Phase 3 adds a vulnerability graph, optional LLM
-summaries and a plugin system for additional sources.
+API rate limiting (done). Phase 3 adds a source plugin system (done), a
+vulnerability graph and optional LLM summaries.
 
 ## Quickstart (development)
 
@@ -202,6 +202,7 @@ vulpulse serve --host 0.0.0.0 --port 8000
 | `GET /api/v1/vendors` | Vendor volume and risk aggregation |
 | `GET /api/v1/vendors/{vendor}` | Vendor products and top-risk vulnerabilities |
 | `GET /api/v1/export` | Markdown or HTML report with the same filters |
+| `GET /api/v1/plugins` | Installed source plugins and their schedules |
 | `POST /api/v1/admin/crawl` | Trigger one crawl (requires `X-API-Key`) |
 
 Example:
@@ -293,6 +294,7 @@ vulpulse worker
 | `crawl:nvd` | 60 min | Incremental, using the last successful checkpoint |
 | `crawl:cisa_kev` | 6 h | Full KEV feed sync |
 | `crawl:exploitdb` | 24 h | Full Exploit-DB CSV sync |
+| `crawl:<plugin>` | plugin-defined | Auto-added for every loaded source plugin |
 | `enrich:epss` | 24 h | Updates existing CVEs with EPSS scores |
 | `notify:alerts` | 5 min | Matches subscriptions and delivers alerts |
 
@@ -300,6 +302,69 @@ Intervals are configurable through `VULPULSE_*` environment variables. Every
 run is recorded in `crawl_runs`; a failing source is logged and does not stop
 the scheduler. `vulpulse worker --once` runs all jobs once and exits, which is
 handy for Cron or a manual refresh.
+
+## Source plugins
+
+Built-in sources and third-party sources share one plugin contract. A plugin is
+a Python distribution exposing a `vulpulse.sources` entry point that resolves
+to a `BaseSource` subclass (or a zero-argument factory returning one):
+
+```python
+from vulpulse.crawler.base import BaseSource
+from vulpulse.crawler.models import RawVuln
+
+
+class MySource(BaseSource):
+    name = "my_source"
+    description = "My public vulnerability feed."
+    plugin_api_version = 1
+    default_interval_minutes = 360
+    default_lookback_days = 7
+
+    async def fetch(self, *, since=None, checkpoint=None):
+        yield RawVuln(
+            source=self.name,
+            source_vuln_id="ADVISORY-1",
+            title="Example advisory",
+            source_url="https://example.com/advisory/1",
+        )
+```
+
+Declare the entry point in the plugin's `pyproject.toml`:
+
+```toml
+[project.entry-points."vulpulse.sources"]
+my_source = "my_plugin:MySource"
+```
+
+Install the plugin into the same environment as VulPulse, then inspect it:
+
+```bash
+vulpulse plugins
+vulpulse plugins --json
+vulpulse crawl --source my_source
+```
+
+`vulpulse plugins` shows the interval, kind, module and load failures. The same
+metadata is available at `GET /api/v1/plugins`. The scheduler automatically
+adds a `crawl:<name>` job for every loaded plugin; override
+`plugin_schedule(settings)` on the source class if the defaults do not fit.
+Plugins are isolated per entry point: a plugin that fails to import, declares
+the wrong `plugin_api_version` or raises from `fetch` is logged and skipped
+without stopping other sources.
+
+A complete installable example lives in
+[`examples/plugins/vulpulse-example-source`](examples/plugins/vulpulse-example-source):
+
+```bash
+pip install -e examples/plugins/vulpulse-example-source --no-deps
+vulpulse plugins
+vulpulse crawl --source example
+```
+
+Plugin code runs in-process, so install only trusted packages. Set
+`VULPULSE_PLUGINS_ENABLED=false` to disable third-party entry points while
+keeping the built-in sources.
 
 ## Alerts
 
@@ -396,6 +461,7 @@ variables or `.env`. See [`.env.example`](.env.example) for the full list.
 |---|---|---|
 | `VULPULSE_ENV` | `dev` | `dev`, `test` or `prod` |
 | `VULPULSE_LOG_LEVEL` | `INFO` | Console/file log level |
+| `VULPULSE_PLUGINS_ENABLED` | `true` | Discover third-party source plugins |
 | `VULPULSE_DATABASE_URL` | `sqlite+aiosqlite:///./data/vulpulse.db` | SQLAlchemy URL |
 | `VULPULSE_API_KEY` | empty | Protects admin API and admin UI |
 | `VULPULSE_SESSION_SECRET` | empty | Signs admin session cookies (set a stable random value) |
@@ -425,6 +491,9 @@ not provide proof-of-concept code, exploit tooling, or attack capabilities.
 - Chinese sources such as CNVD are not enabled by default because they lack
   stable public APIs and have unclear scraping terms. Any future adapter will be
   opt-in and disabled by default.
+- Third-party plugins are responsible for their own source terms and
+  rate-limit policies. The default distribution ships only NVD, CISA KEV and
+  Exploit-DB adapters.
 
 See the [disclaimer](#disclaimer) below.
 
@@ -440,9 +509,11 @@ VulPulse/
 │   ├── scheduler/    # APScheduler jobs and worker entry point
 │   ├── api/          # FastAPI application and routers
 │   ├── web/          # Jinja2 templates and static assets
+│   ├── plugins.py    # source plugin discovery and metadata
 │   ├── config.py     # environment-driven settings
 │   ├── logging.py    # loguru configuration
 │   └── cli.py        # Typer entry point
+├── examples/plugins/ # installable example source plugin
 ├── deploy/           # Dockerfile and docker-compose.yml
 ├── docs/             # screenshots
 ├── tests/            # unit and integration tests
@@ -476,6 +547,9 @@ Issues and pull requests are welcome. Please run `ruff check .`,
   by digest, reducing supply-chain drift.
 - `/api` routes are rate-limited per client IP (120/min by default). Forwarded
   headers are only honored from explicitly configured proxy CIDRs.
+- Source plugins are discovered from installed `vulpulse.sources` entry points.
+  Plugin code runs in-process; install only trusted packages and use
+  `VULPULSE_PLUGINS_ENABLED=false` when third-party discovery is not wanted.
 - Swagger UI and the OpenAPI schema are disabled in `prod` unless
   `VULPULSE_DOCS_ENABLED=true`.
 - `vulpulse serve` binds to `127.0.0.1` by default. Pass `--host 0.0.0.0` only

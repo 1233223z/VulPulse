@@ -5,6 +5,28 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-11-26
+
+### Added
+
+- Source plugin API: any `BaseSource` subclass can be exposed through a
+  `vulpulse.sources` entry point and used by the CLI, admin API and scheduler.
+- `vulpulse plugins` and `GET /api/v1/plugins` show plugin metadata, schedules
+  and load failures.
+- Built-in NVD, CISA KEV and Exploit-DB sources now expose plugin metadata and
+  scheduling policies through the same interface.
+- The scheduler creates one `crawl:<plugin>` job per loaded plugin, so new
+  sources do not require changes to the scheduler.
+- Installable example plugin under `examples/plugins/vulpulse-example-source`.
+- `VULPULSE_PLUGINS_ENABLED` disables third-party plugin discovery while
+  keeping built-in sources.
+
+### Changed
+
+- Pinned plugin API version (`PLUGIN_API_VERSION=1`) with clean failure
+  isolation for import errors, invalid versions and broken factories.
+- Added plugin source documentation and the example plugin to the README.
+
 ## [0.5.3] - 2026-11-26
 
 ### Added
@@ -176,6 +198,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   data volume and health checks.
 - CI across Python 3.10, 3.12 and 3.14, plus a container build job.
 
+[0.6.0]: https://github.com/1233223z/VulPulse/releases/tag/v0.6.0
 [0.5.3]: https://github.com/1233223z/VulPulse/releases/tag/v0.5.3
 [0.5.2]: https://github.com/1233223z/VulPulse/releases/tag/v0.5.2
 [0.5.1]: https://github.com/1233223z/VulPulse/releases/tag/v0.5.1
