@@ -4,12 +4,16 @@ from __future__ import annotations
 
 import secrets
 from typing import Any
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
+from loguru import logger
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from vulpulse.ai.service import SummaryService
+from vulpulse.ai.summarizer import SummaryError
 from vulpulse.api.deps import get_session
 from vulpulse.config import get_settings
 from vulpulse.db.repositories import ChannelRepository, SubscriptionRepository
@@ -131,6 +135,43 @@ async def admin_home(request: Request) -> RedirectResponse:
     if redirect is not None:
         return redirect
     return RedirectResponse("/admin/subscriptions", status_code=303)
+
+
+@router.post("/vulns/{identifier}/summary", response_model=None)
+async def generate_ai_summary(
+    identifier: str,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+) -> RedirectResponse:
+    """Generate an AI summary from the admin UI."""
+    redirect = admin_redirect(request)
+    if redirect is not None:
+        return redirect
+    form = await request.form()
+    if not verify_csrf(request, str(form.get("csrf_token") or "")):
+        raise HTTPException(status_code=400, detail="Invalid CSRF token")
+
+    settings = get_settings()
+    if not settings.llm_enabled or not settings.llm_api_key:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="AI summaries are not configured",
+        )
+
+    refresh = str(form.get("refresh") or "") in {"1", "true", "on"}
+    target = f"/vulns/{quote(identifier, safe='')}"
+    try:
+        outcome = await SummaryService(session, settings=settings).generate(
+            identifier,
+            refresh=refresh,
+        )
+    except SummaryError as exc:
+        logger.warning("Admin summary failed for {}: {}", identifier, type(exc).__name__)
+        return RedirectResponse(f"{target}?summary_error=1", status_code=303)
+
+    if outcome is None:
+        raise HTTPException(status_code=404, detail="Vulnerability not found")
+    return RedirectResponse(target, status_code=303)
 
 
 async def _render_channels(

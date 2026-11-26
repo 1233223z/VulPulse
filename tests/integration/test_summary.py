@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 from httpx import AsyncClient
 
 from vulpulse.ai.service import SummaryService
@@ -149,6 +151,43 @@ async def test_summary_endpoint_unknown_vulnerability(
     )
 
     assert response.status_code == 404
+
+
+async def test_admin_ui_generates_summary(
+    client: AsyncClient,
+    monkeypatch,
+) -> None:
+    monkeypatch.setenv("VULPULSE_API_KEY", "secret")
+    monkeypatch.setenv("VULPULSE_LLM_ENABLED", "true")
+    monkeypatch.setenv("VULPULSE_LLM_API_KEY", "test-key")
+    get_settings.cache_clear()
+
+    async def fake_summarize(self: VulnSummarizer, vulnerability: object) -> SummaryResult:
+        return SummaryResult("UI summary text.", "claude-opus-5-5", utcnow())
+
+    monkeypatch.setattr(VulnSummarizer, "summarize", fake_summarize)
+
+    public_page = await client.get("/vulns/CVE-2024-0001")
+    assert "Generate AI summary" not in public_page.text
+
+    login = await client.post("/admin/login", data={"api_key": "secret"})
+    assert login.status_code == 303
+
+    page = await client.get("/vulns/CVE-2024-0001")
+    assert "Generate AI summary" in page.text
+    match = re.search(r'name="csrf_token" value="([^"]+)"', page.text)
+    assert match is not None
+
+    response = await client.post(
+        "/admin/vulns/CVE-2024-0001/summary",
+        data={"csrf_token": match.group(1)},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 303
+    summary_page = await client.get("/vulns/CVE-2024-0001")
+    assert "UI summary text." in summary_page.text
+    assert "Regenerate AI summary" in summary_page.text
 
 
 async def test_detail_page_shows_cached_summary(

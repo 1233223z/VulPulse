@@ -468,7 +468,7 @@ def subscription_list() -> None:
 
 @app.command()
 def export(
-    report_format: str = typer.Option("md", "--format", "-f", help="md or html"),
+    report_format: str = typer.Option("md", "--format", "-f", help="md, html or csv"),
     output: str = typer.Option("-", "--output", "-o", help="File path, or - for stdout"),
     q: str | None = typer.Option(None, "--q"),
     severity: str | None = typer.Option(None, "--severity"),
@@ -494,7 +494,7 @@ def export(
     from vulpulse.report.service import ReportFilters, generate_report
     from vulpulse.timeutils import utcnow
 
-    if report_format not in {"md", "html"}:
+    if report_format not in {"md", "html", "csv"}:
         typer.echo("Format must be md or html.", err=True)
         raise typer.Exit(code=2)
 

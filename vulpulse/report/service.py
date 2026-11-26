@@ -14,6 +14,7 @@ from vulpulse.report.builder import (
     build_html,
     build_markdown,
 )
+from vulpulse.report.csv import build_csv
 from vulpulse.timeutils import utcnow
 
 
@@ -80,8 +81,8 @@ async def generate_report(
     *,
     settings: Settings | None = None,
 ) -> ReportResult:
-    if report_format not in {"md", "html"}:
-        raise ValueError("report_format must be 'md' or 'html'")
+    if report_format not in {"md", "html", "csv"}:
+        raise ValueError("report_format must be 'md', 'html' or 'csv'")
 
     settings = settings or get_settings()
     items, total = await VulnerabilityRepository(session).search(
@@ -101,6 +102,7 @@ async def generate_report(
         order=filters.order,
         limit=filters.limit,
         offset=0,
+        with_details=report_format == "csv",
     )
 
     generated_at = utcnow()
@@ -116,7 +118,7 @@ async def generate_report(
             generated_at,
             base_url,
         )
-    else:
+    elif report_format == "html":
         content = build_html(
             items,
             summary,
@@ -124,8 +126,10 @@ async def generate_report(
             generated_at,
             base_url,
         )
+    else:
+        content = build_csv(items, base_url)
 
-    suffix = "md" if report_format == "md" else "html"
+    suffix = report_format
     filename = f"vulpulse-report-{generated_at:%Y%m%d-%H%M%S}.{suffix}"
     return ReportResult(
         content=content,

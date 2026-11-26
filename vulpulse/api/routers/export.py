@@ -17,7 +17,7 @@ router = APIRouter(tags=["export"])
 
 @router.get("/export")
 async def export_report(
-    report_format: Literal["md", "html"] = Query(default="md", alias="format"),
+    report_format: Literal["md", "html", "csv"] = Query(default="md", alias="format"),
     q: str | None = Query(default=None, max_length=200),
     severity: Severity | None = None,
     source: str | None = None,
@@ -57,12 +57,14 @@ async def export_report(
         report_format,
     )
 
-    media_type = (
-        "text/markdown; charset=utf-8" if report_format == "md" else "text/html; charset=utf-8"
-    )
+    media_types = {
+        "md": "text/markdown; charset=utf-8",
+        "html": "text/html; charset=utf-8",
+        "csv": "text/csv; charset=utf-8",
+    }
     return Response(
         content=result.content,
-        media_type=media_type,
+        media_type=media_types[report_format],
         headers={
             "Content-Disposition": f'attachment; filename="{result.filename}"',
         },

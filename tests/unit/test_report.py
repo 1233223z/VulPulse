@@ -4,6 +4,7 @@ from datetime import datetime
 from types import SimpleNamespace
 
 from vulpulse.report.builder import ReportSummary, build_html, build_markdown
+from vulpulse.report.csv import build_csv
 from vulpulse.report.service import ReportFilters
 
 
@@ -20,6 +21,7 @@ def make_vuln(**overrides):
         "in_kev": True,
         "exploit_available": True,
         "published_at": datetime(2024, 1, 1),
+        "modified_at": None,
     }
     data.update(overrides)
     return SimpleNamespace(**data)
@@ -116,3 +118,23 @@ def test_filter_description() -> None:
     assert "vendor apache" in text
     assert "KEV only" in text
     assert "risk >= 60" in text
+
+
+def test_csv_escapes_spreadsheet_formulas() -> None:
+    product = SimpleNamespace(vendor="apache", product="struts")
+    cwe = SimpleNamespace(id="CWE-79", name="XSS")
+    item = make_vuln(
+        title="=SUM(1,1)",
+        description="ignored",
+        product_links=[SimpleNamespace(product=product)],
+        cwe_links=[SimpleNamespace(cwe=cwe)],
+        source_records=[SimpleNamespace()],
+    )
+
+    content = build_csv([item], "https://vulpulse.example")
+
+    assert "'=SUM" in content
+    assert "apache" in content
+    assert "struts" in content
+    assert "CWE-79" in content
+    assert "https://vulpulse.example/vulns/CVE-2024-0001" in content

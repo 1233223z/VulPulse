@@ -19,6 +19,7 @@ from vulpulse.db.repositories import (
     VulnerabilityRepository,
 )
 from vulpulse.graph import GraphService
+from vulpulse.web.admin_auth import current_csrf, is_admin
 from vulpulse.web.graph_layout import layout_graph
 
 WEB_DIR = Path(__file__).resolve().parent
@@ -177,11 +178,19 @@ async def vuln_detail(
         RiskWeights.from_settings(settings),
         recency_days=settings.risk_recency_days,
     )
+    can_summarize = settings.llm_enabled and is_admin(request)
 
     return templates.TemplateResponse(
         request=request,
         name="vuln_detail.html",
-        context={"vuln": vuln, "risk": risk, "active": "vulns"},
+        context={
+            "vuln": vuln,
+            "risk": risk,
+            "active": "vulns",
+            "can_summarize": can_summarize,
+            "csrf_token": current_csrf(request) if can_summarize else "",
+            "summary_error": request.query_params.get("summary_error") == "1",
+        },
     )
 
 

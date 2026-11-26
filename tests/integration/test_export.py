@@ -25,6 +25,20 @@ async def test_html_export(client: AsyncClient) -> None:
     assert "CVE-2024-0001" in response.text
 
 
+async def test_csv_export(client: AsyncClient) -> None:
+    response = await client.get("/api/v1/export", params={"format": "csv"})
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/csv")
+    assert response.headers["content-disposition"].startswith("attachment;")
+    assert ".csv" in response.headers["content-disposition"]
+    lines = response.text.splitlines()
+    assert lines[0].startswith("cve_id,title,severity")
+    assert any("CVE-2024-0001" in line for line in lines)
+    assert any("apache" in line and "struts" in line for line in lines)
+    assert any("CWE-79" in line for line in lines)
+
+
 async def test_export_filters(client: AsyncClient) -> None:
     response = await client.get(
         "/api/v1/export",

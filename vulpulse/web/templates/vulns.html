@@ -12,6 +12,7 @@
   <div class="d-flex flex-wrap gap-2">
     <a class="btn btn-sm btn-outline-info" href="/api/v1/export?format=md{% if export_query %}&{{ export_query }}{% endif %}">Export MD</a>
     <a class="btn btn-sm btn-outline-info" href="/api/v1/export?format=html{% if export_query %}&{{ export_query }}{% endif %}">Export HTML</a>
+    <a class="btn btn-sm btn-outline-info" href="/api/v1/export?format=csv{% if export_query %}&{{ export_query }}{% endif %}">Export CSV</a>
     <a class="btn btn-sm btn-outline-secondary" href="/vulns">Reset filters</a>
   </div>
 </div>

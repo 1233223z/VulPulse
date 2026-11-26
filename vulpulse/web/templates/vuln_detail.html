@@ -119,18 +119,35 @@
   </div>
 </div>
 
-{% if vuln.ai_summary %}
+{% if summary_error %}
+<div class="alert alert-warning" role="alert">AI summary generation failed. Check the provider configuration and logs.</div>
+{% endif %}
+
+{% if vuln.ai_summary or can_summarize %}
 <div class="card metric-card mb-4">
   <div class="card-body">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
       <h2 class="h6 mb-0">AI summary</h2>
       <span class="badge text-bg-secondary">AI-generated · verify against sources</span>
     </div>
+    {% if vuln.ai_summary %}
     <p class="mb-3 description">{{ vuln.ai_summary }}</p>
-    <div class="small text-secondary">
+    <div class="small text-secondary mb-3">
       {% if vuln.ai_summary_model %}Model: {{ vuln.ai_summary_model }} · {% endif %}
       {% if vuln.ai_summary_at %}Generated {{ vuln.ai_summary_at.strftime("%Y-%m-%d %H:%M UTC") }}{% endif %}
     </div>
+    {% else %}
+    <p class="text-secondary mb-3">No AI summary has been generated for this record.</p>
+    {% endif %}
+    {% if can_summarize %}
+    <form method="post" action="/admin/vulns/{{ vuln.cve_id or vuln.id }}/summary" class="d-inline">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      {% if vuln.ai_summary %}<input type="hidden" name="refresh" value="1">{% endif %}
+      <button class="btn btn-sm btn-outline-info" type="submit">
+        {% if vuln.ai_summary %}Regenerate AI summary{% else %}Generate AI summary{% endif %}
+      </button>
+    </form>
+    {% endif %}
   </div>
 </div>
 {% endif %}

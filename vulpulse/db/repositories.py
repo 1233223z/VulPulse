@@ -198,6 +198,7 @@ class VulnerabilityRepository:
         order: str = "desc",
         limit: int = 20,
         offset: int = 0,
+        with_details: bool = False,
     ) -> tuple[list[Vulnerability], int]:
         filters: list[Any] = []
 
@@ -265,6 +266,12 @@ class VulnerabilityRepository:
             .limit(limit)
             .offset(offset)
         )
+        if with_details:
+            statement = statement.options(
+                selectinload(Vulnerability.product_links).selectinload(VulnProduct.product),
+                selectinload(Vulnerability.cwe_links).selectinload(VulnCwe.cwe),
+                selectinload(Vulnerability.source_records),
+            )
         items = list((await self.session.scalars(statement)).all())
         return items, total
 
