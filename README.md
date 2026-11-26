@@ -9,7 +9,7 @@ Collect · Normalize · Deduplicate · Score · Alert
 [![CI](https://github.com/1233223z/VulPulse/actions/workflows/ci.yml/badge.svg)](https://github.com/1233223z/VulPulse/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Status](https://img.shields.io/badge/status-v0.5.2-orange)
+![Status](https://img.shields.io/badge/status-v0.5.3-orange)
 
 </div>
 
@@ -19,7 +19,7 @@ them across sources, enriches them with exploit intelligence, and exposes the
 result through a REST API, a web dashboard, and configurable alerts
 (WeCom / email).
 
-> **Status:** `v0.5.2`. The API and database schema may change before `v1.0`.
+> **Status:** `v0.5.3`. The API and database schema may change before `v1.0`.
 
 ## Screenshots
 
@@ -95,10 +95,10 @@ so multiple API workers can never trigger duplicate crawls.
 | **M9** | Subscription rules and WeCom / email alerts | ✅ |
 | **M10** | Docker packaging and `v0.1.0` release | ✅ |
 
-Phase 2 (in progress) adds a configurable 0-100 risk score (done),
-vendor/product correlation (done), Markdown/HTML reports (done), a subscription
-management UI (done) and stronger rate control. Phase 3 adds a vulnerability
-graph, optional LLM summaries and a plugin system for additional sources.
+Phase 2 adds a configurable 0-100 risk score (done), vendor/product correlation
+(done), Markdown/HTML reports (done), a subscription management UI (done) and
+API rate limiting (done). Phase 3 adds a vulnerability graph, optional LLM
+summaries and a plugin system for additional sources.
 
 ## Quickstart (development)
 
@@ -110,7 +110,8 @@ python -m venv .venv
 # Windows: .venv\Scripts\activate
 # Linux/macOS: source .venv/bin/activate
 
-pip install -e ".[dev]"
+pip install --require-hashes -r requirements-dev.txt
+pip install --no-deps -e .
 cp .env.example .env
 
 pytest
@@ -124,6 +125,11 @@ vulpulse enrich --source epss
 vulpulse version
 ```
 
+`requirements.txt` and `requirements-dev.txt` are generated, hash-pinned locks;
+install them with `--require-hashes` for reproducible environments. If you
+prefer the latest versions allowed by `pyproject.toml`, use
+`pip install -e ".[dev]"`.
+
 `vulpulse crawl` writes to the SQLite database and records every run in
 `crawl_runs`. Re-running a source is idempotent: records are merged by CVE,
 not duplicated. `vulpulse enrich --source epss` only updates CVEs that already
@@ -132,6 +138,19 @@ rows.
 
 Python 3.10+ is required. The default database is SQLite, so no external
 services are needed.
+
+### Updating dependencies
+
+`pyproject.toml` is the source of truth. After changing dependency ranges,
+regenerate both locks and run the test suite:
+
+```bash
+python -m pip install "uv>=0.13,<0.14"
+python scripts/update_locks.py
+pytest
+```
+
+Docker and CI install from these lock files with `--require-hashes`.
 
 ## Docker
 
@@ -199,6 +218,19 @@ Admin requests need `VULPULSE_API_KEY` and an `X-API-Key` header. The admin
 endpoint runs the crawl as a background task in the API process, which is
 convenient for a single-node setup; production deployments should use the
 scheduler worker or the CLI.
+
+All `/api` routes are rate-limited per client IP: 120 requests per minute by
+default. Responses include `X-RateLimit-Limit` and `X-RateLimit-Remaining`;
+blocked requests return `429` with `Retry-After`. Set
+`VULPULSE_API_RATE_LIMIT_PER_MINUTE=0` to disable the application-level limit.
+If VulPulse sits behind a reverse proxy, set `VULPULSE_TRUSTED_PROXIES` to the
+proxy CIDRs so `X-Forwarded-For` is honored; without it, forwarded headers are
+ignored. The limiter is per process, so a reverse proxy should also enforce a
+limit for multi-worker deployments.
+
+Swagger UI and the OpenAPI schema are enabled outside `prod` and disabled in
+`prod` by default. Set `VULPULSE_DOCS_ENABLED=true` to expose `/docs` in
+production, or `false` to hide it everywhere.
 
 ## Web dashboard
 
@@ -369,6 +401,9 @@ variables or `.env`. See [`.env.example`](.env.example) for the full list.
 | `VULPULSE_SESSION_SECRET` | empty | Signs admin session cookies (set a stable random value) |
 | `VULPULSE_SESSION_HTTPS_ONLY` | `false` | Mark session cookies HTTPS-only |
 | `VULPULSE_SESSION_MAX_AGE_HOURS` | `8` | Admin session lifetime |
+| `VULPULSE_API_RATE_LIMIT_PER_MINUTE` | `120` | Per-IP API limit; `0` disables it |
+| `VULPULSE_TRUSTED_PROXIES` | empty | Comma-separated proxy CIDRs allowed to set `X-Forwarded-For` |
+| `VULPULSE_DOCS_ENABLED` | auto | `/docs` and OpenAPI; auto means off in `prod` |
 | `VULPULSE_WECOM_ALLOWED_HOSTS` | `qyapi.weixin.qq.com` | HTTPS host allowlist for WeCom webhooks |
 | `VULPULSE_NVD_API_KEY` | empty | Raises NVD rate limit from 5 to 50 req/30s |
 | `VULPULSE_WECOM_WEBHOOK_URL` | empty | WeCom alert channel |
@@ -435,6 +470,14 @@ Issues and pull requests are welcome. Please run `ruff check .`,
 - Crawler responses are capped at 64 MiB and redirects are limited to the same
   HTTPS host (three hops), preventing redirect-based SSRF and memory exhaustion.
   EPSS decompression is capped as well.
+- Runtime and development dependencies are hash-locked in `requirements.txt` and
+  `requirements-dev.txt`; Docker and CI install with `--require-hashes`.
+- GitHub Actions are pinned to commit SHAs and the Docker base image is pinned
+  by digest, reducing supply-chain drift.
+- `/api` routes are rate-limited per client IP (120/min by default). Forwarded
+  headers are only honored from explicitly configured proxy CIDRs.
+- Swagger UI and the OpenAPI schema are disabled in `prod` unless
+  `VULPULSE_DOCS_ENABLED=true`.
 - `vulpulse serve` binds to `127.0.0.1` by default. Pass `--host 0.0.0.0` only
   when you intend to expose it, preferably behind an HTTPS reverse proxy.
 - Compose credentials are scoped per service; the migration service no longer

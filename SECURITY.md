@@ -19,5 +19,55 @@ source (NVD, CISA, Exploit-DB, FIRST).
 
 ## Supported versions
 
-The latest `0.1.x` release receives security fixes. Older releases may not be
+The latest `0.5.x` release receives security fixes. Older releases may not be
 supported.
+
+## Security model
+
+### Trust boundaries
+
+- **Public internet → API**: untrusted clients can query `/api` and the
+  dashboard. They must not be able to read admin data or exhaust the process.
+- **Admin → web UI/API**: the shared `VULPULSE_API_KEY` is the only
+  administrative credential. It is sent as `X-API-Key` for the API and exchanged
+  for a signed, HttpOnly session cookie in the web UI.
+- **Crawler → public sources**: source responses are untrusted input. They are
+  size-limited, redirect-constrained and parsed before being merged into the
+  database.
+- **Notifier → WeCom/SMTP**: delivery endpoints are configured by an
+  administrator and receive vulnerability data. WeCom URLs must be HTTPS and
+  match an allowlist; SMTP uses verified TLS.
+- **Container → host**: the image runs as a non-root user; the SQLite database
+  and logs live in a dedicated volume.
+
+### Implemented controls
+
+- API-key authentication with constant-time comparison; admin sessions expire
+  after eight hours and are invalidated when the key rotates.
+- CSRF tokens on state-changing admin forms, SameSite=Lax session cookies,
+  login rate limiting and open-redirect protection.
+- Per-client-IP API rate limiting with `X-Forwarded-For` honored only from
+  configured trusted proxy CIDRs.
+- Crawler response caps, same-host HTTPS redirects and a bounded retry policy;
+  EPSS decompression is capped.
+- SMTP certificate verification and WeCom host allowlisting; webhook URLs and
+  keys are excluded from logs and delivery errors.
+- Hash-locked dependencies installed with `--require-hashes`; GitHub Actions
+  pinned to commit SHAs; Docker base image pinned by digest.
+- Escaped Markdown/HTML report output and security headers on HTTP responses.
+
+### Residual risks
+
+- There is one shared administrator key rather than multi-user accounts or
+  granular roles.
+- Rate limiting is in-process. Multi-worker deployments need a limit at the
+  reverse proxy as well.
+- SQLite is single-writer. Run one scheduler worker and avoid concurrent bulk
+  imports on a production instance.
+- Notification webhook URLs and SMTP settings are stored in the local SQLite
+  database. Protect the data directory (`0700`) and database backups.
+- Third-party vulnerability data may be incomplete or inaccurate; VulPulse does
+  not independently verify vendor claims.
+- Public deployments should terminate HTTPS at a reverse proxy, set
+  `VULPULSE_SESSION_HTTPS_ONLY=true`, and restrict `/admin` and `/api/v1/admin`
+  to trusted networks.
