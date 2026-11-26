@@ -693,8 +693,9 @@ VulPulse/
 ## Contributing
 
 Issues and pull requests are welcome. Please run `ruff check .`,
-`ruff format --check .` and `pytest --cov=vulpulse --cov-fail-under=80` before
-opening a PR. Commit messages follow
+`ruff format --check .`, `mypy vulpulse` and
+`pytest --cov=vulpulse --cov-fail-under=80` before opening a PR. Commit
+messages follow
 [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`,
 `docs:`, ...).
 

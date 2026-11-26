@@ -5,6 +5,26 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- Rate-limited API requests now receive `X-Request-ID` and
+  `X-Response-Time-ms` and are counted in the Prometheus metrics. The rate
+  limiter no longer short-circuits outside the request observer.
+- Admin login failure tracking is capped at 4096 clients, so a distributed
+  credential-stuffing attempt can no longer grow the in-memory dictionary
+  without bound.
+- Test teardown disposes the cached database engine, removing the
+  `Event loop is closed` warning from Windows test runs.
+
+### Changed
+
+- CI runs `mypy vulpulse` and adds a Windows test job.
+- Fixed the existing mypy errors and typed the risk-field protocol as
+  read-only properties.
+- Expanded CLI tests raise `vulpulse/cli.py` coverage from 62% to 99%.
+
 ## [0.13.3] - 2026-11-26
 
 ### Changed
