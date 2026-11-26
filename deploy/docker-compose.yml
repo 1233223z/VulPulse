@@ -4,6 +4,7 @@ x-app-env: &app-env
   VULPULSE_DATABASE_URL: sqlite+aiosqlite:////app/data/vulpulse.db
   VULPULSE_DATA_DIR: /app/data
   VULPULSE_LOG_DIR: /app/data/logs
+  VULPULSE_METRICS_ENABLED: ${VULPULSE_METRICS_ENABLED:-true}
   VULPULSE_PLUGINS_ENABLED: ${VULPULSE_PLUGINS_ENABLED:-true}
   VULPULSE_PUBLIC_BASE_URL: ${VULPULSE_PUBLIC_BASE_URL:-http://localhost:8000}
   TZ: ${TZ:-UTC}

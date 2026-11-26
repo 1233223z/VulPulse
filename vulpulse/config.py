@@ -34,6 +34,7 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     data_dir: Path = Path("data")
     log_dir: Path = Path("data/logs")
+    metrics_enabled: bool = True
 
     # Source plugins
     plugins_enabled: bool = True

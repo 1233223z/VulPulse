@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import mimetypes
 import secrets
+import time
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 
@@ -11,9 +12,11 @@ from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from loguru import logger
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from starlette.middleware.sessions import SessionMiddleware
 
 from vulpulse import __version__
+from vulpulse.api.metrics import observe_http_request
 from vulpulse.api.rate_limit import (
     SlidingWindowRateLimiter,
     client_ip,
@@ -90,6 +93,16 @@ def create_app() -> FastAPI:
     trusted_proxies = parse_trusted_proxies(settings.trusted_proxies)
     application.state.api_rate_limiter = rate_limiter
     application.state.docs_enabled = docs_enabled
+    application.state.metrics_enabled = settings.metrics_enabled
+
+    if settings.metrics_enabled:
+
+        @application.get("/metrics", include_in_schema=False)
+        async def metrics() -> Response:
+            return Response(
+                content=generate_latest(),
+                media_type=CONTENT_TYPE_LATEST,
+            )
 
     application.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
@@ -114,6 +127,25 @@ def create_app() -> FastAPI:
         )
         if request.url.path.startswith(("/admin", "/api/v1/admin")):
             response.headers.setdefault("Cache-Control", "no-store")
+
+    @application.middleware("http")
+    async def observe_request(
+        request: Request,
+        call_next: Callable[[Request], Awaitable[Response]],
+    ) -> Response:
+        started = time.perf_counter()
+        try:
+            response = await call_next(request)
+        except Exception:
+            if settings.metrics_enabled:
+                observe_http_request(request, 500, time.perf_counter() - started)
+            raise
+
+        duration = time.perf_counter() - started
+        if settings.metrics_enabled:
+            observe_http_request(request, response.status_code, duration)
+        response.headers.setdefault("X-Response-Time-ms", f"{duration * 1000:.1f}")
+        return response
 
     @application.middleware("http")
     async def security_headers(
