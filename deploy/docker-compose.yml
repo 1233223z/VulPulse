@@ -1,7 +1,7 @@
 name: vulpulse
 
 x-app-env: &app-env
-  VULPULSE_DATABASE_URL: sqlite+aiosqlite:////app/data/vulpulse.db
+  VULPULSE_DATABASE_URL: ${VULPULSE_DATABASE_URL:-sqlite+aiosqlite:////app/data/vulpulse.db}
   VULPULSE_DATA_DIR: /app/data
   VULPULSE_LOG_DIR: /app/data/logs
   VULPULSE_METRICS_ENABLED: ${VULPULSE_METRICS_ENABLED:-true}

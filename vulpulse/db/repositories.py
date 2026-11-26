@@ -166,7 +166,11 @@ class VulnerabilityRepository:
 
     async def published_trend(self, days: int = 30) -> list[tuple[str, int]]:
         start = utcnow() - timedelta(days=days)
-        day = func.date(Vulnerability.published_at)
+        bind = self.session.get_bind()
+        if bind is not None and bind.dialect.name == "postgresql":
+            day = func.date_trunc("day", Vulnerability.published_at)
+        else:
+            day = func.date(Vulnerability.published_at)
         statement = (
             select(day, func.count())
             .where(
@@ -177,7 +181,7 @@ class VulnerabilityRepository:
             .order_by(day)
         )
         result = await self.session.execute(statement)
-        return [(str(day_value), int(count)) for day_value, count in result.all()]
+        return [(str(day_value)[:10], int(count)) for day_value, count in result.all()]
 
     async def search(
         self,
