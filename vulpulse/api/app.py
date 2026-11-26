@@ -133,18 +133,31 @@ def create_app() -> FastAPI:
         request: Request,
         call_next: Callable[[Request], Awaitable[Response]],
     ) -> Response:
+        request_id = secrets.token_hex(8)
+        request.state.request_id = request_id
         started = time.perf_counter()
         try:
             response = await call_next(request)
         except Exception:
             if settings.metrics_enabled:
                 observe_http_request(request, 500, time.perf_counter() - started)
+            logger.bind(request_id=request_id).exception(
+                "{} {} failed", request.method, request.url.path
+            )
             raise
 
         duration = time.perf_counter() - started
         if settings.metrics_enabled:
             observe_http_request(request, response.status_code, duration)
+        response.headers.setdefault("X-Request-ID", request_id)
         response.headers.setdefault("X-Response-Time-ms", f"{duration * 1000:.1f}")
+        logger.bind(request_id=request_id).debug(
+            "{} {} -> {} in {:.1f}ms",
+            request.method,
+            request.url.path,
+            response.status_code,
+            duration * 1000,
+        )
         return response
 
     @application.middleware("http")

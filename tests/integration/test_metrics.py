@@ -11,6 +11,8 @@ async def test_metrics_endpoint_and_response_time(client: AsyncClient) -> None:
     metrics = await client.get("/metrics")
 
     assert api.status_code == 200
+    assert api.headers["X-Request-ID"]
+    assert len(api.headers["X-Request-ID"]) == 16
     assert api.headers["X-Response-Time-ms"]
     assert metrics.status_code == 200
     assert metrics.headers["content-type"].startswith("text/plain")
@@ -32,4 +34,5 @@ async def test_metrics_can_be_disabled(monkeypatch) -> None:
 
     assert metrics.status_code == 404
     assert index.status_code == 200
+    assert index.headers["X-Request-ID"]
     assert index.headers["X-Response-Time-ms"]
