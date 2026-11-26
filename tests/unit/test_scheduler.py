@@ -164,3 +164,44 @@ async def test_job_failure_does_not_propagate(tmp_path) -> None:
     finally:
         logger.enable("vulpulse.scheduler.worker")
         await database.dispose()
+
+
+async def test_worker_starts_and_stops(tmp_path) -> None:
+    settings = Settings(_env_file=None, scheduler_run_on_start=False)  # type: ignore[call-arg]
+    database = Database(f"sqlite+aiosqlite:///{tmp_path / 'start.db'}")
+    worker = SchedulerWorker(settings=settings, database=database, schedules=[])
+
+    try:
+        worker.start()
+        assert worker.scheduler.running is True
+        worker.shutdown()
+        worker.shutdown()
+    finally:
+        await database.dispose()
+
+
+async def test_run_all_once_executes_each_schedule(tmp_path) -> None:
+    settings = Settings(_env_file=None, scheduler_run_on_start=False)  # type: ignore[call-arg]
+    database = Database(f"sqlite+aiosqlite:///{tmp_path / 'all.db'}")
+    calls: list[str] = []
+
+    async def fake_crawl(schedule: JobSchedule) -> None:
+        calls.append(schedule.job_id)
+
+    schedules = [
+        JobSchedule("crawl:one", "crawl", "nvd", 60),
+        JobSchedule("crawl:two", "crawl", "cisa_kev", 60),
+    ]
+    worker = SchedulerWorker(
+        settings=settings,
+        database=database,
+        schedules=schedules,
+        crawl_job=fake_crawl,
+    )
+
+    try:
+        await worker.run_all_once()
+    finally:
+        await database.dispose()
+
+    assert calls == ["crawl:one", "crawl:two"]
