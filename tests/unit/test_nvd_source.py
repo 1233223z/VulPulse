@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import httpx
 import respx
@@ -12,6 +12,7 @@ from vulpulse.crawler.sources.nvd import (
     NvdSource,
     _windows,
     extract_cvss,
+    extract_products,
     parse_cpe,
     parse_cve,
 )
@@ -141,6 +142,52 @@ def test_windows_split_long_ranges() -> None:
     assert len(windows) == 4
     assert windows[0][0] == start
     assert windows[-1][1] == end
+
+
+def test_start_time_uses_since_and_checkpoint() -> None:
+    settings = Settings(_env_file=None)  # type: ignore[call-arg]
+    source = NvdSource(settings)
+    try:
+        since = datetime(2024, 1, 1, tzinfo=timezone.utc)
+        assert source._start_time(since, None) == datetime(2024, 1, 1)
+
+        checkpoint = {"last_modified": "2024-02-03T04:05:06Z"}
+        assert source._start_time(None, checkpoint) == datetime(2024, 2, 3, 4, 5, 6)
+
+        invalid = source._start_time(None, {"last_modified": "not-a-date"})
+        assert invalid < utcnow()
+        assert invalid > utcnow() - timedelta(days=31)
+    finally:
+        import asyncio
+
+        asyncio.run(source.close())
+
+
+def test_headers_include_api_key_only_when_configured() -> None:
+    without_key = NvdSource(Settings(_env_file=None))  # type: ignore[call-arg]
+    with_key = NvdSource(
+        Settings(_env_file=None, nvd_api_key="secret-key")  # type: ignore[call-arg]
+    )
+    try:
+        assert without_key._headers() is None
+        assert with_key._headers() == {"apiKey": "secret-key"}
+    finally:
+        import asyncio
+
+        asyncio.run(without_key.close())
+        asyncio.run(with_key.close())
+
+
+def test_malformed_cvss_and_products_are_ignored() -> None:
+    assert extract_cvss({}) == (None, None, None, None)
+    assert extract_cvss({"cvssMetricV31": [{"type": "Primary", "cvssData": "bad"}]}) == (
+        None,
+        None,
+        None,
+        None,
+    )
+
+    assert extract_products(["bad", {"nodes": ["bad", {"cpeMatch": ["bad"]}]}]) == []
 
 
 @respx.mock
