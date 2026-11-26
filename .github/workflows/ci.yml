@@ -6,7 +6,7 @@ on:
   pull_request:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   lint-test:
@@ -45,6 +45,16 @@ jobs:
             tail -200 pytest.log
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload failure log
+        if: failure()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B "ci-debug-${{ github.run_id }}"
+          cp pytest.log ci-debug.log
+          git add ci-debug.log
+          git commit -m "ci: debug log for run ${{ github.run_id }}"
+          git push origin "HEAD:ci-debug-${{ github.run_id }}"
 
   docker:
     name: docker build
