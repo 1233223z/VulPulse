@@ -64,3 +64,15 @@ class Database:
 def get_database() -> Database:
     """Return the process-wide database instance."""
     return Database(get_settings().database_url)
+
+
+async def dispose_database() -> None:
+    """Dispose the process-wide database engine, if one has been created.
+
+    The CLI runs each command in its own ``asyncio.run`` loop; disposing the
+    cached engine keeps its SQLite worker threads from outliving that loop.
+    """
+    if get_database.cache_info().currsize:
+        database = get_database()
+        get_database.cache_clear()
+        await database.dispose()
