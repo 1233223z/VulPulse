@@ -145,3 +145,13 @@ async def test_summarizer_rejects_empty_text() -> None:
 
     with pytest.raises(SummaryError, match="empty"):
         await summarizer.summarize(make_vulnerability())
+
+
+async def test_summarizer_rejects_oversized_payload() -> None:
+    summarizer = VulnSummarizer(
+        make_settings(llm_max_input_chars=50),
+        client=FakeClient(make_response()),
+    )
+
+    with pytest.raises(SummaryError, match="too large"):
+        await summarizer.summarize(make_vulnerability())

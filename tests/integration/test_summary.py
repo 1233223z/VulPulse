@@ -5,7 +5,13 @@ import re
 from httpx import AsyncClient
 
 from vulpulse.ai.service import SummaryService
-from vulpulse.ai.summarizer import SummaryResult, VulnSummarizer
+from vulpulse.ai.summarizer import (
+    SummaryConfigurationError,
+    SummaryError,
+    SummaryRefused,
+    SummaryResult,
+    VulnSummarizer,
+)
 from vulpulse.config import Settings, get_settings
 from vulpulse.db.repositories import VulnerabilityRepository
 from vulpulse.db.session import Database
@@ -151,6 +157,38 @@ async def test_summary_endpoint_unknown_vulnerability(
     )
 
     assert response.status_code == 404
+
+
+async def test_summary_endpoint_maps_provider_errors(
+    client: AsyncClient,
+    monkeypatch,
+) -> None:
+    monkeypatch.setenv("VULPULSE_API_KEY", "secret")
+    monkeypatch.setenv("VULPULSE_LLM_ENABLED", "true")
+    monkeypatch.setenv("VULPULSE_LLM_API_KEY", "test-key")
+    get_settings.cache_clear()
+
+    cases = [
+        (SummaryRefused("refused"), 422),
+        (SummaryConfigurationError("bad config"), 503),
+        (SummaryError("provider failed"), 502),
+    ]
+    for error, expected in cases:
+
+        async def fail(
+            self: VulnSummarizer,
+            vulnerability: object,
+            error: Exception = error,
+        ) -> SummaryResult:
+            raise error
+
+        monkeypatch.setattr(VulnSummarizer, "summarize", fail)
+        response = await client.post(
+            "/api/v1/admin/vulns/CVE-2024-0001/summary",
+            headers={"X-API-Key": "secret"},
+        )
+
+        assert response.status_code == expected
 
 
 async def test_admin_ui_generates_summary(
