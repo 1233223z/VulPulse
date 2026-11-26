@@ -125,3 +125,9 @@ async def test_security_headers(client: AsyncClient) -> None:
 
     assert response.headers["x-content-type-options"] == "nosniff"
     assert response.headers["x-frame-options"] == "DENY"
+    assert response.headers["referrer-policy"] == "no-referrer"
+    assert "camera=()" in response.headers["permissions-policy"]
+
+    admin = await client.get("/admin/login")
+
+    assert admin.headers["Cache-Control"] == "no-store"

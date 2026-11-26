@@ -3,9 +3,11 @@ from __future__ import annotations
 from datetime import datetime
 from types import SimpleNamespace
 
+import pytest
+
 from vulpulse.report.builder import ReportSummary, build_html, build_markdown
 from vulpulse.report.csv import build_csv
-from vulpulse.report.service import ReportFilters
+from vulpulse.report.service import ReportFilters, generate_report
 
 
 def make_vuln(**overrides):
@@ -118,6 +120,15 @@ def test_filter_description() -> None:
     assert "vendor apache" in text
     assert "KEV only" in text
     assert "risk >= 60" in text
+
+
+async def test_generate_report_rejects_unknown_format() -> None:
+    with pytest.raises(ValueError, match="report_format"):
+        await generate_report(
+            None,  # type: ignore[arg-type]
+            ReportFilters(),
+            "pdf",
+        )
 
 
 def test_csv_escapes_spreadsheet_formulas() -> None:
