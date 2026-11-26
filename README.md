@@ -9,7 +9,7 @@ Collect · Normalize · Deduplicate · Score · Alert
 [![CI](https://github.com/1233223z/VulPulse/actions/workflows/ci.yml/badge.svg)](https://github.com/1233223z/VulPulse/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Status](https://img.shields.io/badge/status-v0.8.0-orange)
+![Status](https://img.shields.io/badge/status-v0.9.0-orange)
 
 </div>
 
@@ -19,7 +19,7 @@ them across sources, enriches them with exploit intelligence, and exposes the
 result through a REST API, a web dashboard, and configurable alerts
 (WeCom / email).
 
-> **Status:** `v0.8.0`. The API and database schema may change before `v1.0`.
+> **Status:** `v0.9.0`. The API and database schema may change before `v1.0`.
 
 ## Screenshots
 
@@ -81,6 +81,9 @@ flowchart LR
 The scheduler runs in its own process (`vulpulse worker`), separate from the API,
 so multiple API workers can never trigger duplicate crawls.
 
+For design decisions, the data model, failure modes and the PostgreSQL/queue
+scaling path, see [docs/architecture.md](docs/architecture.md).
+
 ## Roadmap
 
 | Phase | Scope | Status |
@@ -101,7 +104,8 @@ Phase 2 adds a configurable 0-100 risk score (done), vendor/product correlation
 (done), Markdown/HTML reports (done), a subscription management UI (done) and
 API rate limiting (done). Phase 3 adds a source plugin system (done), a
 vulnerability relationship graph (done) and optional LLM summaries. Operational
-readiness adds Prometheus metrics (done) and request latency headers.
+readiness adds Prometheus metrics, request IDs, latency headers, architecture
+notes, benchmark tooling and a coverage gate (done).
 
 ## Quickstart (development)
 
@@ -335,6 +339,30 @@ histogram_quantile(0.95, sum by (le, route) (rate(vulpulse_http_request_duration
 Metrics are per API process; scrape every worker if you run multiple. The
 endpoint can reveal traffic patterns, so restrict it at the reverse proxy or
 set `VULPULSE_METRICS_ENABLED=false`.
+
+## Performance
+
+A small read-only benchmark is included:
+
+```bash
+python scripts/benchmark_api.py --base-url http://localhost:8000 \
+  --cve CVE-2021-44228 --requests 20
+```
+
+Example output from a local Docker Desktop stack with ~31k records (milliseconds;
+your hardware and dataset will differ):
+
+| Endpoint | mean | p50 | p95 | max |
+|---|---:|---:|---:|---:|
+| `/healthz` | 8.9 | 5.0 | 6.4 | 83.9 |
+| `/api/v1/vulns?size=20` | 7.8 | 7.5 | 9.6 | 10.1 |
+| `/api/v1/vulns/{cve}` | 34.7 | 33.6 | 43.9 | 45.3 |
+| `/api/v1/vulns/{cve}/graph` | 47.9 | 49.7 | 56.6 | 59.3 |
+| `/api/v1/stats/overview` | 47.7 | 46.1 | 55.4 | 56.0 |
+
+The benchmark sends 110 requests by default, below the 120/min API limit. For
+larger samples, disable the application limit or raise it for the benchmark
+window.
 
 ## Scheduler
 
@@ -573,7 +601,7 @@ VulPulse/
 │   └── cli.py        # Typer entry point
 ├── examples/plugins/ # installable example source plugin
 ├── deploy/           # Dockerfile and docker-compose.yml
-├── docs/             # screenshots
+├── docs/             # architecture notes and screenshots
 ├── tests/            # unit and integration tests
 ├── CHANGELOG.md
 └── SECURITY.md
@@ -582,7 +610,8 @@ VulPulse/
 ## Contributing
 
 Issues and pull requests are welcome. Please run `ruff check .`,
-`ruff format --check .` and `pytest` before opening a PR. Commit messages follow
+`ruff format --check .` and `pytest --cov=vulpulse --cov-fail-under=80` before
+opening a PR. Commit messages follow
 [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`,
 `docs:`, ...).
 

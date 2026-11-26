@@ -5,6 +5,21 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] - 2026-11-26
+
+### Added
+
+- `X-Request-ID` on every HTTP response and request-scoped debug/error logs.
+- Architecture documentation covering data flow, merge policy, scheduling,
+  plugins, security boundaries, failure modes and the scaling path.
+- `scripts/benchmark_api.py` plus a README performance section with reproducible
+  read-only benchmark results.
+- CI coverage gate at 80% (`pytest --cov=vulpulse --cov-fail-under=80`).
+
+### Changed
+
+- API observability now records request IDs alongside latency and metrics.
+
 ## [0.8.0] - 2026-11-26
 
 ### Added
@@ -230,6 +245,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   data volume and health checks.
 - CI across Python 3.10, 3.12 and 3.14, plus a container build job.
 
+[0.9.0]: https://github.com/1233223z/VulPulse/releases/tag/v0.9.0
 [0.8.0]: https://github.com/1233223z/VulPulse/releases/tag/v0.8.0
 [0.7.0]: https://github.com/1233223z/VulPulse/releases/tag/v0.7.0
 [0.6.0]: https://github.com/1233223z/VulPulse/releases/tag/v0.6.0
