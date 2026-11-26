@@ -217,10 +217,11 @@ See [SECURITY.md](../SECURITY.md) for the full threat model and residual risks.
 
 ## Scaling path
 
-The current design is optimized for one node. If the deployment grows:
+The current design is optimized for one node. PostgreSQL is supported through
+`asyncpg` and the Compose override; SQLite remains the default for small
+deployments. If the deployment grows:
 
-1. Move SQLite to PostgreSQL; the SQLAlchemy models and repository layer are
-   the main compatibility surface.
+1. Use PostgreSQL and run migrations before starting the API/worker.
 2. Run a queue (for example Redis or PostgreSQL-backed) instead of APScheduler
    so crawl jobs can run concurrently with per-source locks.
 3. Move rate-limit state to a shared store if multiple API workers are exposed.

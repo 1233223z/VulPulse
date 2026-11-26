@@ -19,7 +19,7 @@ source (NVD, CISA, Exploit-DB, FIRST).
 
 ## Supported versions
 
-The latest `0.11.x` release receives security fixes. Older releases may not be
+The latest `0.12.x` release receives security fixes. Older releases may not be
 supported.
 
 ### 0.11.1

@@ -5,6 +5,22 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.0] - 2026-11-26
+
+### Added
+
+- PostgreSQL support through SQLAlchemy's async `asyncpg` driver.
+- `deploy/docker-compose.postgres.yml` override with a health-checked
+  PostgreSQL service and a separate persistent volume.
+- Dialect-aware publication trend aggregation and a PostgreSQL integration test.
+- CI job that applies all migrations and exercises CRUD/trend queries against
+  PostgreSQL 16.
+
+### Changed
+
+- The Compose database URL is overridable with `VULPULSE_DATABASE_URL`; SQLite
+  remains the default for single-node deployments.
+
 ## [0.11.1] - 2026-11-26
 
 ### Security
@@ -296,6 +312,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   data volume and health checks.
 - CI across Python 3.10, 3.12 and 3.14, plus a container build job.
 
+[0.12.0]: https://github.com/1233223z/VulPulse/releases/tag/v0.12.0
 [0.11.1]: https://github.com/1233223z/VulPulse/releases/tag/v0.11.1
 [0.11.0]: https://github.com/1233223z/VulPulse/releases/tag/v0.11.0
 [0.10.0]: https://github.com/1233223z/VulPulse/releases/tag/v0.10.0

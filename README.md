@@ -9,7 +9,7 @@ Collect · Normalize · Deduplicate · Score · Alert
 [![CI](https://github.com/1233223z/VulPulse/actions/workflows/ci.yml/badge.svg)](https://github.com/1233223z/VulPulse/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Status](https://img.shields.io/badge/status-v0.11.1-orange)
+![Status](https://img.shields.io/badge/status-v0.12.0-orange)
 
 </div>
 
@@ -19,7 +19,7 @@ them across sources, enriches them with exploit intelligence, and exposes the
 result through a REST API, a web dashboard, and configurable alerts
 (WeCom / email).
 
-> **Status:** `v0.11.1`. The API and database schema may change before `v1.0`.
+> **Status:** `v0.12.0`. The API and database schema may change before `v1.0`.
 
 ## Screenshots
 
@@ -167,6 +167,17 @@ docker compose -f deploy/docker-compose.yml --env-file .env up -d --build
 ```
 
 Open `http://localhost:8000/`.
+
+For PostgreSQL instead of SQLite:
+
+```bash
+POSTGRES_PASSWORD=change-me \
+  docker compose -f deploy/docker-compose.yml \
+  -f deploy/docker-compose.postgres.yml up -d --build
+```
+
+The PostgreSQL override stores data in the `vulpulse-postgres` volume and waits
+for database health before running migrations.
 
 The stack has three services:
 
@@ -589,7 +600,7 @@ variables or `.env`. See [`.env.example`](.env.example) for the full list.
 | `VULPULSE_LLM_MAX_INPUT_CHARS` | `12000` | Bounded summary input |
 | `VULPULSE_LLM_MAX_TOKENS` | `1024` | Summary output cap |
 | `VULPULSE_LLM_TIMEOUT_SECONDS` | `60` | Anthropic request timeout |
-| `VULPULSE_DATABASE_URL` | `sqlite+aiosqlite:///./data/vulpulse.db` | SQLAlchemy URL |
+| `VULPULSE_DATABASE_URL` | `sqlite+aiosqlite:///./data/vulpulse.db` | SQLAlchemy URL; PostgreSQL uses `postgresql+asyncpg://...` |
 | `VULPULSE_API_KEY` | empty | Protects admin API and admin UI |
 | `VULPULSE_SESSION_SECRET` | empty | Signs admin session cookies (set a stable random value) |
 | `VULPULSE_SESSION_HTTPS_ONLY` | `false` | Mark session cookies HTTPS-only |
