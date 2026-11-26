@@ -9,7 +9,7 @@ Collect · Normalize · Deduplicate · Score · Alert
 [![CI](https://github.com/1233223z/VulPulse/actions/workflows/ci.yml/badge.svg)](https://github.com/1233223z/VulPulse/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Status](https://img.shields.io/badge/status-v0.12.0-orange)
+![Status](https://img.shields.io/badge/status-v0.13.0-orange)
 
 </div>
 
@@ -19,7 +19,7 @@ them across sources, enriches them with exploit intelligence, and exposes the
 result through a REST API, a web dashboard, and configurable alerts
 (WeCom / email).
 
-> **Status:** `v0.12.0`. The API and database schema may change before `v1.0`.
+> **Status:** `v0.13.0`. The API and database schema may change before `v1.0`.
 
 ## Screenshots
 
@@ -178,6 +178,34 @@ POSTGRES_PASSWORD=change-me \
 
 The PostgreSQL override stores data in the `vulpulse-postgres` volume and waits
 for database health before running migrations.
+
+## Backup and restore
+
+For SQLite, use the CLI's online backup support:
+
+```bash
+vulpulse backup --output backups/vulpulse-$(date +%Y%m%d-%H%M%S).db
+
+# Stop the API and worker before restoring.
+vulpulse restore --input backups/vulpulse-20260101-120000.db --force
+```
+
+The backup uses SQLite's online backup API, not a raw file copy, and verifies
+the result with `PRAGMA integrity_check`. Restores refuse to overwrite an
+existing database unless `--force` is supplied. Backup files contain source and
+notification configuration, so store them with the same care as `.env`.
+
+In Docker, write the backup inside the data volume and copy it out:
+
+```bash
+docker compose -f deploy/docker-compose.yml exec -T api \
+  vulpulse backup --output /app/data/backups/vulpulse.db
+docker compose -f deploy/docker-compose.yml cp \
+  api:/app/data/backups/vulpulse.db ./vulpulse-backup.db
+```
+
+PostgreSQL deployments should use `pg_dump` and `pg_restore` with the same
+stop/start discipline.
 
 The stack has three services:
 

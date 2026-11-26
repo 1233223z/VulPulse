@@ -5,6 +5,21 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.13.0] - 2026-11-26
+
+### Added
+
+- `vulpulse backup` and `vulpulse restore` for SQLite using the online backup
+  API, with integrity checks, overwrite protection and owner-only permissions.
+- Backup/restore instructions for local and Docker deployments; PostgreSQL
+  guidance points to `pg_dump`/`pg_restore`.
+
+### Security
+
+- Restores refuse to overwrite an existing database without `--force` and
+  report a clear error if the database is still in use.
+- Backup files contain channel configuration and should be handled like `.env`.
+
 ## [0.12.0] - 2026-11-26
 
 ### Added
@@ -312,6 +327,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   data volume and health checks.
 - CI across Python 3.10, 3.12 and 3.14, plus a container build job.
 
+[0.13.0]: https://github.com/1233223z/VulPulse/releases/tag/v0.13.0
 [0.12.0]: https://github.com/1233223z/VulPulse/releases/tag/v0.12.0
 [0.11.1]: https://github.com/1233223z/VulPulse/releases/tag/v0.11.1
 [0.11.0]: https://github.com/1233223z/VulPulse/releases/tag/v0.11.0

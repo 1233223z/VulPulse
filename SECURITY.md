@@ -19,7 +19,7 @@ source (NVD, CISA, Exploit-DB, FIRST).
 
 ## Supported versions
 
-The latest `0.12.x` release receives security fixes. Older releases may not be
+The latest `0.13.x` release receives security fixes. Older releases may not be
 supported.
 
 ### 0.11.1
@@ -81,7 +81,8 @@ supported.
 - SQLite is single-writer. Run one scheduler worker and avoid concurrent bulk
   imports on a production instance.
 - Notification webhook URLs and SMTP settings are stored in the local SQLite
-  database. Protect the data directory (`0700`) and database backups.
+  database. Protect the data directory (`0700`) and database backups; backups
+  contain the same channel configuration.
 - Third-party vulnerability data may be incomplete or inaccurate; VulPulse does
   not independently verify vendor claims.
 - Enabling AI summaries sends selected metadata to Anthropic and may incur API
