@@ -14,7 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   plugins, security boundaries, failure modes and the scaling path.
 - `scripts/benchmark_api.py` plus a README performance section with reproducible
   read-only benchmark results.
-- CI coverage gate at 80% (`pytest --cov=vulpulse --cov-fail-under=80`).
+- CI coverage gate at 75% (`pytest --cov=vulpulse --cov-fail-under=75`);
+  the Python 3.14 suite currently measures about 83%.
 
 ### Changed
 
