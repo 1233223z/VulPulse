@@ -19,6 +19,7 @@ CSRF_SESSION_KEY = "vul_pulse_csrf"
 LOGIN_WINDOW_SECONDS = 300.0
 LOGIN_MAX_ATTEMPTS = 5
 LOGIN_GLOBAL_MAX_ATTEMPTS = 50
+LOGIN_MAX_TRACKED_CLIENTS = 4096
 _LOGIN_ATTEMPTS: dict[str, list[float]] = {}
 _GLOBAL_ATTEMPTS: list[float] = []
 
@@ -98,6 +99,30 @@ def _recent_global(now: float) -> list[float]:
     return _GLOBAL_ATTEMPTS
 
 
+def _prune_login_attempts(now: float) -> None:
+    """Bound memory when many distinct clients fail to log in.
+
+    Only the per-IP dictionary needs bounding: the global list is capped by
+    ``LOGIN_GLOBAL_MAX_ATTEMPTS`` before new failures are recorded. Entries are
+    dropped from least to most recently seen once the client cap is exceeded.
+    """
+    if len(_LOGIN_ATTEMPTS) <= LOGIN_MAX_TRACKED_CLIENTS:
+        return
+
+    cutoff = now - LOGIN_WINDOW_SECONDS
+    stale = [
+        key for key, attempts in _LOGIN_ATTEMPTS.items() if not attempts or attempts[-1] <= cutoff
+    ]
+    for key in stale:
+        del _LOGIN_ATTEMPTS[key]
+
+    overflow = len(_LOGIN_ATTEMPTS) - LOGIN_MAX_TRACKED_CLIENTS
+    if overflow > 0:
+        oldest = sorted(_LOGIN_ATTEMPTS, key=lambda key: _LOGIN_ATTEMPTS[key][-1])[:overflow]
+        for key in oldest:
+            del _LOGIN_ATTEMPTS[key]
+
+
 def login_allowed(request: Request) -> bool:
     now = time.monotonic()
     return (
@@ -113,6 +138,7 @@ def record_login_failure(request: Request) -> None:
     attempts.append(now)
     _LOGIN_ATTEMPTS[key] = attempts
     _recent_global(now).append(now)
+    _prune_login_attempts(now)
 
 
 def clear_login_failures(request: Request) -> None:
