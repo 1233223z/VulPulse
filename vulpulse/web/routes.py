@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 from urllib.parse import urlencode, urlparse
 
 from fastapi import APIRouter, Depends, Query, Request
@@ -96,7 +97,7 @@ async def vuln_list(
     page_size = 20
     kev_checked = kev in {"on", "true", "1"}
     exploit_checked = exploit in {"on", "true", "1"}
-    filters: dict[str, object] = {
+    filters: dict[str, Any] = {
         "q": q or None,
         "severity": severity or None,
         "source": source or None,

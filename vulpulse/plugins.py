@@ -65,7 +65,7 @@ def _iter_entry_points() -> list[Any]:
     if select is not None:
         return list(select(group=ENTRY_POINT_GROUP))
     # Python 3.10 compatibility for the mapping-style EntryPoints object.
-    return list(discovered.get(ENTRY_POINT_GROUP, []))  # type: ignore[union-attr]
+    return list(discovered.get(ENTRY_POINT_GROUP, []))
 
 
 def _resolve_source(entry_point: Any) -> type[BaseSource]:

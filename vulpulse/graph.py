@@ -140,8 +140,8 @@ class GraphService:
                 seen_edges.add(key)
                 edges.append(GraphEdge(source=source, target=target, kind=kind))
 
-        for link in product_links:
-            product = link.product
+        for product_link in product_links:
+            product = product_link.product
             product_id = f"product:{product.id}"
             params = {"product": product.product}
             if product.vendor:
@@ -159,20 +159,20 @@ class GraphService:
                     metadata={
                         "vendor": product.vendor,
                         "product": product.product,
-                        "version_range": link.version_range,
+                        "version_range": product_link.version_range,
                     },
                 )
             )
             add_edge(nodes[0].id, product_id, "affects")
 
-        for link in cwe_links:
-            cwe_id = f"cwe:{link.cwe.id}"
+        for cwe_link in cwe_links:
+            cwe_id = f"cwe:{cwe_link.cwe.id}"
             add_node(
                 GraphNode(
                     id=cwe_id,
                     type="cwe",
-                    label=link.cwe.id,
-                    metadata={"name": link.cwe.name},
+                    label=cwe_link.cwe.id,
+                    metadata={"name": cwe_link.cwe.name},
                 )
             )
             add_edge(nodes[0].id, cwe_id, "classified_as")
@@ -194,12 +194,12 @@ class GraphService:
         for candidate in related:
             candidate_id = f"vuln:{candidate.id}"
             add_node(_vulnerability_node(candidate))
-            for link in candidate.product_links:
-                if link.product_id in displayed_products:
-                    add_edge(candidate_id, f"product:{link.product_id}", "affects")
-            for link in candidate.cwe_links:
-                if link.cwe_id in displayed_cwes:
-                    add_edge(candidate_id, f"cwe:{link.cwe_id}", "classified_as")
+            for product_link in candidate.product_links:
+                if product_link.product_id in displayed_products:
+                    add_edge(candidate_id, f"product:{product_link.product_id}", "affects")
+            for cwe_link in candidate.cwe_links:
+                if cwe_link.cwe_id in displayed_cwes:
+                    add_edge(candidate_id, f"cwe:{cwe_link.cwe_id}", "classified_as")
 
         return GraphResult(
             graph=VulnGraph(

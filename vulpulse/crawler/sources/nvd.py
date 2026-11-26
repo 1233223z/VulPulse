@@ -8,6 +8,7 @@ from typing import Any
 
 from vulpulse.config import Settings
 from vulpulse.crawler.base import BaseSource, SchedulePolicy
+from vulpulse.crawler.http import HttpClient
 from vulpulse.crawler.models import RawProduct, RawVuln
 from vulpulse.crawler.registry import register_source
 from vulpulse.timeutils import parse_datetime, to_naive_utc, utcnow
@@ -25,10 +26,10 @@ class NvdSource(BaseSource):
     kind = "api"
     description = "NVD CVE API 2.0 with incremental lastModified windows."
 
-    @property
-    def default_rate_limit(self) -> tuple[int, float]:
+    def __init__(self, settings: Settings, client: HttpClient | None = None) -> None:
         # NVD allows 5 requests / 30s anonymously, 50 / 30s with an API key.
-        return (50, 30.0) if self.settings.nvd_api_key else (5, 30.0)
+        self.default_rate_limit = (50, 30.0) if settings.nvd_api_key else (5, 30.0)
+        super().__init__(settings, client)
 
     @classmethod
     def plugin_schedule(cls, settings: Settings) -> SchedulePolicy:

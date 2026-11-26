@@ -13,6 +13,7 @@ from datetime import datetime
 from typing import Any
 
 import anthropic
+from anthropic.types.beta import BetaTextBlock
 from loguru import logger
 
 from vulpulse.config import Settings
@@ -179,7 +180,7 @@ class VulnSummarizer:
             raise SummaryError("Summary exceeded the output token limit")
 
         text = "\n".join(
-            block.text for block in response.content if getattr(block, "type", None) == "text"
+            block.text for block in response.content if isinstance(block, BetaTextBlock)
         ).strip()
         if not text:
             raise SummaryError("Anthropic returned an empty summary")

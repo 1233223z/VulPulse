@@ -31,14 +31,35 @@ _SEVERITY_FALLBACK = {
 
 
 class RiskFields(Protocol):
-    severity: str
-    cvss_score: float | None
-    epss_score: float | None
-    in_kev: bool
-    exploit_available: bool
-    published_at: datetime | None
-    modified_at: datetime | None
-    created_at: datetime | None
+    """Read-only view of the fields the scorer needs.
+
+    Declared with properties so ORM rows with narrower attribute types (for
+    example a non-optional ``created_at``) satisfy the protocol.
+    """
+
+    @property
+    def severity(self) -> str: ...
+
+    @property
+    def cvss_score(self) -> float | None: ...
+
+    @property
+    def epss_score(self) -> float | None: ...
+
+    @property
+    def in_kev(self) -> bool: ...
+
+    @property
+    def exploit_available(self) -> bool: ...
+
+    @property
+    def published_at(self) -> datetime | None: ...
+
+    @property
+    def modified_at(self) -> datetime | None: ...
+
+    @property
+    def created_at(self) -> datetime | None: ...
 
 
 @dataclass(frozen=True)
@@ -126,7 +147,7 @@ def score_risk(
         window = max(1, recency_days)
         recency_component = max(0.0, min(100.0, 100.0 * (1.0 - age_days / window)))
 
-    components = {
+    components: dict[str, dict[str, Any]] = {
         "cvss": {
             "raw": cvss_raw,
             "normalized": round(cvss_component, 2),

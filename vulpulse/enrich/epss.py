@@ -12,9 +12,9 @@ import gzip
 import io
 from collections.abc import Iterator
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
-from sqlalchemy import bindparam, select, update
+from sqlalchemy import Table, bindparam, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from vulpulse.config import Settings, get_settings
@@ -91,7 +91,7 @@ class EpssEnricher:
         session: AsyncSession,
         batch: list[dict[str, Any]],
     ) -> None:
-        table = Vulnerability.__table__
+        table = cast(Table, Vulnerability.__table__)
         statement = (
             update(table)
             .where(table.c.cve_id == bindparam("b_cve_id"))

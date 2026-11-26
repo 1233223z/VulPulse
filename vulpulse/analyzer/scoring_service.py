@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
-from sqlalchemy import bindparam, select, update
+from sqlalchemy import Table, bindparam, select, update
 
 from vulpulse.analyzer.scorer import RiskWeights, score_risk
 from vulpulse.config import Settings, get_settings
@@ -68,7 +68,7 @@ class RiskService:
                     }
                 )
 
-            table = Vulnerability.__table__
+            table = cast(Table, Vulnerability.__table__)
             statement = (
                 update(table)
                 .where(table.c.id == bindparam("b_id"))

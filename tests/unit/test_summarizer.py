@@ -4,6 +4,7 @@ from datetime import datetime
 from types import SimpleNamespace
 
 import pytest
+from anthropic.types.beta import BetaTextBlock
 
 from vulpulse.ai.summarizer import (
     SummaryConfigurationError,
@@ -72,7 +73,7 @@ def make_response(
     stop_reason: str = "end_turn",
 ) -> object:
     return SimpleNamespace(
-        content=[SimpleNamespace(type="text", text=text)],
+        content=[BetaTextBlock(type="text", text=text)],
         stop_reason=stop_reason,
         model="claude-opus-5-5",
     )
