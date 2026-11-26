@@ -70,3 +70,164 @@ code {
 .badge {
   font-weight: 500;
 }
+
+.graph-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--vp-border);
+  border-radius: 0.75rem;
+  background:
+    radial-gradient(circle at center, rgba(79, 140, 255, 0.09), transparent 58%),
+    #0e141c;
+}
+
+.graph-svg {
+  display: block;
+  width: 100%;
+  min-width: 720px;
+  height: auto;
+}
+
+.graph-link {
+  cursor: pointer;
+}
+
+.graph-link:hover {
+  text-decoration: none;
+}
+
+.graph-link:hover .graph-node {
+  filter: brightness(1.3);
+}
+
+.graph-link:hover .graph-label {
+  fill: #fff;
+}
+
+.graph-node {
+  stroke: #0b0f14;
+  stroke-width: 2;
+  transition: filter 0.15s ease;
+}
+
+.graph-node-vulnerability {
+  fill: var(--vp-accent);
+}
+
+.graph-node-center {
+  fill: #f59e0b;
+  stroke: #fde68a;
+  stroke-width: 3;
+}
+
+.graph-node-product {
+  fill: #22c55e;
+}
+
+.graph-node-cwe {
+  fill: #a78bfa;
+}
+
+.graph-node-source {
+  fill: #64748b;
+}
+
+.graph-risk-critical {
+  fill: #ef4444;
+}
+
+.graph-risk-high {
+  fill: #f97316;
+}
+
+.graph-risk-medium {
+  fill: #eab308;
+}
+
+.graph-risk-low {
+  fill: #38bdf8;
+}
+
+.graph-risk-minimal {
+  fill: #94a3b8;
+}
+
+.graph-label {
+  fill: #cbd5e1;
+  font-size: 11px;
+  text-anchor: middle;
+  paint-order: stroke;
+  stroke: #0b0f14;
+  stroke-linejoin: round;
+  stroke-width: 3px;
+}
+
+.graph-label-center {
+  fill: #fff;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.graph-edge {
+  stroke: #475569;
+  stroke-width: 1.2;
+  opacity: 0.8;
+}
+
+.graph-edge-affects {
+  stroke: #4f8cff;
+}
+
+.graph-edge-classified_as {
+  stroke: #a78bfa;
+}
+
+.graph-edge-reported_by {
+  stroke: #64748b;
+  stroke-dasharray: 4 4;
+}
+
+.graph-legend-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 4px;
+}
+
+.graph-legend-dot.graph-node-vulnerability {
+  background: var(--vp-accent);
+}
+
+.graph-legend-dot.graph-node-product {
+  background: #22c55e;
+}
+
+.graph-legend-dot.graph-node-cwe {
+  background: #a78bfa;
+}
+
+.graph-legend-dot.graph-node-source {
+  background: #64748b;
+}
+
+.legend-line {
+  display: inline-block;
+  width: 18px;
+  height: 0;
+  border-top: 2px solid;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
+.legend-line.graph-edge-affects {
+  border-color: #4f8cff;
+}
+
+.legend-line.graph-edge-classified_as {
+  border-color: #a78bfa;
+}
+
+.legend-line.graph-edge-reported_by {
+  border-color: #64748b;
+  border-top-style: dashed;
+}

@@ -299,6 +299,44 @@ class VulnerabilityRepository:
             statement = statement.where(Vulnerability.cve_id == identifier.strip().upper())
         return await self.session.scalar(statement)
 
+    async def related_by_context(
+        self,
+        vuln_id: int,
+        *,
+        product_ids: list[int],
+        cwe_ids: list[str],
+        limit: int = 8,
+    ) -> list[Vulnerability]:
+        """Find other vulnerabilities sharing a product or weakness."""
+        filters: list[Any] = []
+        if product_ids:
+            filters.append(
+                Vulnerability.id.in_(
+                    select(VulnProduct.vuln_id).where(VulnProduct.product_id.in_(product_ids))
+                )
+            )
+        if cwe_ids:
+            filters.append(
+                Vulnerability.id.in_(select(VulnCwe.vuln_id).where(VulnCwe.cwe_id.in_(cwe_ids)))
+            )
+        if not filters:
+            return []
+
+        statement = (
+            select(Vulnerability)
+            .where(Vulnerability.id != vuln_id, or_(*filters))
+            .options(
+                selectinload(Vulnerability.product_links).selectinload(VulnProduct.product),
+                selectinload(Vulnerability.cwe_links).selectinload(VulnCwe.cwe),
+            )
+            .order_by(
+                func.coalesce(Vulnerability.risk_score, -1.0).desc(),
+                Vulnerability.id.desc(),
+            )
+            .limit(limit)
+        )
+        return list((await self.session.scalars(statement)).all())
+
     async def get_or_create_product(self, vendor: str | None, product: str) -> Product:
         stmt = select(Product).where(func.lower(Product.product) == product.lower())
         if vendor is None:

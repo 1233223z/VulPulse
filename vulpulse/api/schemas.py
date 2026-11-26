@@ -57,6 +57,30 @@ class PluginInfoOut(BaseModel):
     builtin: bool
 
 
+class GraphNodeOut(BaseModel):
+    id: str
+    type: Literal["vulnerability", "product", "cwe", "source"]
+    label: str
+    url: str | None = None
+    risk_score: float | None = None
+    risk_level: str | None = None
+    severity: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class GraphEdgeOut(BaseModel):
+    source: str
+    target: str
+    kind: Literal["affects", "classified_as", "reported_by"]
+
+
+class VulnGraphOut(BaseModel):
+    center: str
+    nodes: list[GraphNodeOut]
+    edges: list[GraphEdgeOut]
+    truncated: bool
+
+
 class SourceRecordOut(BaseModel):
     source: str
     source_vuln_id: str

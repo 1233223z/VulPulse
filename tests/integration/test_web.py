@@ -45,6 +45,7 @@ async def test_vulnerability_detail(client: AsyncClient) -> None:
     assert "CWE-79" in response.text
     assert "https://example.test/advisory" in response.text
     assert "Risk breakdown" in response.text
+    assert "Relationship graph" in response.text
 
 
 async def test_vulnerability_detail_not_found(client: AsyncClient) -> None:

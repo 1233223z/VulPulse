@@ -18,6 +18,8 @@ from vulpulse.db.repositories import (
     VendorRepository,
     VulnerabilityRepository,
 )
+from vulpulse.graph import GraphService
+from vulpulse.web.graph_layout import layout_graph
 
 WEB_DIR = Path(__file__).resolve().parent
 TEMPLATES_DIR = WEB_DIR / "templates"
@@ -180,6 +182,33 @@ async def vuln_detail(
         request=request,
         name="vuln_detail.html",
         context={"vuln": vuln, "risk": risk, "active": "vulns"},
+    )
+
+
+@router.get("/vulns/{identifier}/graph", response_class=HTMLResponse)
+async def vuln_graph(
+    request: Request,
+    identifier: str,
+    session: AsyncSession = Depends(get_session),
+) -> HTMLResponse:
+    result = await GraphService(session).build(identifier)
+    if result is None:
+        return templates.TemplateResponse(
+            request=request,
+            name="404.html",
+            context={"identifier": identifier, "active": "vulns"},
+            status_code=404,
+        )
+
+    return templates.TemplateResponse(
+        request=request,
+        name="graph.html",
+        context={
+            "vuln": result.vulnerability,
+            "graph": result.graph,
+            "layout": layout_graph(result.graph),
+            "active": "vulns",
+        },
     )
 
 

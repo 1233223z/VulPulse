@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+{% from "macros.html" import risk_badge, score %}
+
+{% block title %}Relationship graph · {{ vuln.cve_id or vuln.id }} · VulPulse{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+  <ol class="breadcrumb small mb-0">
+    <li class="breadcrumb-item"><a href="/">Dashboard</a></li>
+    <li class="breadcrumb-item"><a href="/vulns">Vulnerabilities</a></li>
+    <li class="breadcrumb-item"><a href="/vulns/{{ vuln.cve_id or vuln.id }}">{{ vuln.cve_id or vuln.id }}</a></li>
+    <li class="breadcrumb-item active" aria-current="page">Graph</li>
+  </ol>
+</nav>
+
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+  <div>
+    <div class="text-secondary small mb-1">Relationship graph</div>
+    <h1 class="h3 mb-2">{{ vuln.cve_id or vuln.title or "Vulnerability" }}</h1>
+    <p class="text-secondary mb-0">{{ vuln.title or "Related products, weaknesses, sources and CVEs." }}</p>
+  </div>
+  <div class="d-flex flex-wrap gap-2">
+    <a class="btn btn-sm btn-outline-info" href="/api/v1/vulns/{{ vuln.cve_id or vuln.id }}/graph">JSON</a>
+    <a class="btn btn-sm btn-outline-secondary" href="/vulns/{{ vuln.cve_id or vuln.id }}">Back to vulnerability</a>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-3">
+    <div class="card metric-card h-100"><div class="card-body">
+      <div class="text-secondary text-uppercase small">Nodes</div>
+      <div class="h4 mb-0">{{ graph.nodes | length }}</div>
+    </div></div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="card metric-card h-100"><div class="card-body">
+      <div class="text-secondary text-uppercase small">Edges</div>
+      <div class="h4 mb-0">{{ graph.edges | length }}</div>
+    </div></div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="card metric-card h-100"><div class="card-body">
+      <div class="text-secondary text-uppercase small">Risk</div>
+      <div class="h4 mb-0">{{ score(vuln.risk_score, 1) }}</div>
+      <div class="small">{{ risk_badge(vuln.risk_level) }}</div>
+    </div></div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="card metric-card h-100"><div class="card-body">
+      <div class="text-secondary text-uppercase small">Scope</div>
+      <div class="h6 mb-0">{{ "truncated" if graph.truncated else "complete" }}</div>
+      <div class="text-secondary small">bounded neighbourhood</div>
+    </div></div>
+  </div>
+</div>
+
+<div class="card metric-card mb-4">
+  <div class="card-body">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+      <h2 class="h6 mb-0">Neighbourhood</h2>
+      <div class="d-flex flex-wrap gap-3 small text-secondary">
+        <span><span class="graph-legend-dot graph-node-vulnerability"></span>vulnerability</span>
+        <span><span class="graph-legend-dot graph-node-product"></span>product</span>
+        <span><span class="graph-legend-dot graph-node-cwe"></span>weakness</span>
+        <span><span class="graph-legend-dot graph-node-source"></span>source</span>
+      </div>
+    </div>
+
+    {% if graph.edges %}
+    <div class="graph-wrap">
+      <svg class="graph-svg" viewBox="0 0 {{ layout.width }} {{ layout.height }}"
+           role="img" aria-label="Relationship graph for {{ vuln.cve_id or vuln.title }}">
+        <g>
+          {% for edge in layout.edges %}
+          <line class="{{ edge.css_class }}" x1="{{ edge.x1 }}" y1="{{ edge.y1 }}"
+                x2="{{ edge.x2 }}" y2="{{ edge.y2 }}"></line>
+          {% endfor %}
+        </g>
+        <g>
+          {% for node in layout.nodes %}
+          {% if node.url %}
+          <a href="{{ node.url }}" class="graph-link">
+            <title>{{ node.tooltip }}</title>
+            <circle class="{{ node.css_class }}" cx="{{ node.x }}" cy="{{ node.y }}" r="{{ node.radius }}"></circle>
+            <text class="graph-label{% if node.center %} graph-label-center{% endif %}"
+                  x="{{ node.x }}" y="{{ node.y + node.radius + 15 }}">{{ node.label }}</text>
+          </a>
+          {% else %}
+          <g>
+            <title>{{ node.tooltip }}</title>
+            <circle class="{{ node.css_class }}" cx="{{ node.x }}" cy="{{ node.y }}" r="{{ node.radius }}"></circle>
+            <text class="graph-label{% if node.center %} graph-label-center{% endif %}"
+                  x="{{ node.x }}" y="{{ node.y + node.radius + 15 }}">{{ node.label }}</text>
+          </g>
+          {% endif %}
+          {% endfor %}
+        </g>
+      </svg>
+    </div>
+    <div class="d-flex flex-wrap gap-3 small text-secondary mt-3">
+      <span><span class="graph-edge legend-line graph-edge-affects"></span>affects</span>
+      <span><span class="graph-edge legend-line graph-edge-classified_as"></span>classified as</span>
+      <span><span class="graph-edge legend-line graph-edge-reported_by"></span>reported by</span>
+    </div>
+    {% else %}
+    <div class="text-center py-5 text-secondary">
+      No related products, weaknesses, sources or vulnerabilities are available.
+    </div>
+    {% endif %}
+
+    {% if graph.truncated %}
+    <p class="small text-secondary mb-0 mt-3">
+      The graph is capped to keep the view readable. The JSON endpoint accepts
+      <code>?related=</code> to adjust the number of related vulnerabilities.
+    </p>
+    {% endif %}
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-12 col-xl-4">
+    <div class="card metric-card h-100"><div class="card-body">
+      <h2 class="h6 mb-3">Products</h2>
+      {% set products = graph.nodes | selectattr("type", "equalto", "product") | list %}
+      {% if products %}
+      <ul class="list-unstyled mb-0">
+        {% for node in products %}
+        <li class="mb-2">{{ node.label }}</li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="text-secondary mb-0">No product mapping.</p>
+      {% endif %}
+    </div></div>
+  </div>
+  <div class="col-12 col-xl-4">
+    <div class="card metric-card h-100"><div class="card-body">
+      <h2 class="h6 mb-3">Weaknesses</h2>
+      {% set weaknesses = graph.nodes | selectattr("type", "equalto", "cwe") | list %}
+      {% if weaknesses %}
+      <ul class="list-unstyled mb-0">
+        {% for node in weaknesses %}
+        <li class="mb-2">{{ node.label }}</li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="text-secondary mb-0">No CWE mapping.</p>
+      {% endif %}
+    </div></div>
+  </div>
+  <div class="col-12 col-xl-4">
+    <div class="card metric-card h-100"><div class="card-body">
+      <h2 class="h6 mb-3">Related vulnerabilities</h2>
+      {% set related = graph.nodes | selectattr("type", "equalto", "vulnerability") | rejectattr("id", "equalto", graph.center) | list %}
+      {% if related %}
+      <ul class="list-unstyled mb-0">
+        {% for node in related %}
+        <li class="mb-2">
+          <a href="{{ node.url }}">{{ node.label }}</a>
+          {% if node.risk_score is not none %}<span class="text-secondary small">risk {{ score(node.risk_score, 1) }}</span>{% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="text-secondary mb-0">No related vulnerabilities sharing a product or weakness.</p>
+      {% endif %}
+    </div></div>
+  </div>
+</div>
+{% endblock %}

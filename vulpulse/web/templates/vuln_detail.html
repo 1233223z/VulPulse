@@ -21,6 +21,7 @@
     <span class="badge text-bg-primary">Risk {{ score(risk.score, 1) }}</span>
     {{ flags(vuln) }}
     <span class="badge text-bg-secondary">{{ vuln.status }}</span>
+    <a class="btn btn-sm btn-outline-info ms-1" href="/vulns/{{ vuln.cve_id or vuln.id }}/graph">Relationship graph</a>
   </div>
 </div>
 

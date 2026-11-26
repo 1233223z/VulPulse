@@ -11,6 +11,8 @@ from vulpulse.analyzer.scorer import RiskWeights, score_risk
 from vulpulse.api.deps import get_session
 from vulpulse.api.schemas import (
     CweOut,
+    GraphEdgeOut,
+    GraphNodeOut,
     Order,
     ProductOut,
     ReferenceOut,
@@ -18,11 +20,13 @@ from vulpulse.api.schemas import (
     SortField,
     SourceRecordOut,
     VulnDetail,
+    VulnGraphOut,
     VulnPage,
     VulnSummary,
 )
 from vulpulse.config import get_settings
 from vulpulse.db.repositories import VulnerabilityRepository
+from vulpulse.graph import GraphService
 
 router = APIRouter(prefix="/vulns", tags=["vulnerabilities"])
 
@@ -131,4 +135,41 @@ async def get_vuln(
         references=[
             ReferenceOut(url=reference.url, tags=reference.tags) for reference in vuln.references
         ],
+    )
+
+
+@router.get("/{identifier}/graph", response_model=VulnGraphOut)
+async def get_vuln_graph(
+    identifier: str,
+    related: int = Query(default=8, ge=0, le=20),
+    session: AsyncSession = Depends(get_session),
+) -> VulnGraphOut:
+    result = await GraphService(session).build(identifier, related_limit=related)
+    if result is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Vulnerability not found",
+        )
+
+    graph = result.graph
+    return VulnGraphOut(
+        center=graph.center,
+        nodes=[
+            GraphNodeOut(
+                id=node.id,
+                type=node.type,
+                label=node.label,
+                url=node.url,
+                risk_score=node.risk_score,
+                risk_level=node.risk_level,
+                severity=node.severity,
+                metadata=node.metadata,
+            )
+            for node in graph.nodes
+        ],
+        edges=[
+            GraphEdgeOut(source=edge.source, target=edge.target, kind=edge.kind)
+            for edge in graph.edges
+        ],
+        truncated=graph.truncated,
     )
