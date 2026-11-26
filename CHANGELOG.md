@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Suppressed `httpx2` and `httpcore2` INFO logs used by the Anthropic SDK so
   provider request URLs and headers cannot be written into application logs.
 
+### CI
+
+- Added a Docker Compose smoke job that boots the stack and checks health,
+  plugins, metrics, CSV export and the disabled AI-summary path.
+
 ## [0.11.0] - 2026-11-26
 
 ### Added

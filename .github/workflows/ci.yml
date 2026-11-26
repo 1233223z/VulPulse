@@ -61,6 +61,42 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+  smoke:
+    name: docker smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Start stack
+        env:
+          VULPULSE_API_KEY: smoke-api-key
+          VULPULSE_SESSION_SECRET: smoke-session-secret
+          VULPULSE_SCHEDULER_RUN_ON_START: "false"
+        run: docker compose -f deploy/docker-compose.yml up -d --build
+      - name: Verify endpoints
+        run: |
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8000/healthz; then
+              break
+            fi
+            sleep 2
+          done
+          curl -fsS http://127.0.0.1:8000/api/v1/plugins | python -c \
+            "import json, sys; data=json.load(sys.stdin); names={item['name'] for item in data}; assert {'nvd','cisa_kev','exploitdb'} <= names"
+          curl -fsS http://127.0.0.1:8000/metrics | grep -q vulpulse_http_requests_total
+          curl -fsS 'http://127.0.0.1:8000/api/v1/export?format=csv' | head -n 1 | grep -q '^cve_id,title,severity'
+          summary_status=$(curl -s -o /dev/null -w '%{http_code}' -X POST \
+            -H 'X-API-Key: smoke-api-key' \
+            http://127.0.0.1:8000/api/v1/admin/vulns/CVE-2021-44228/summary)
+          test "$summary_status" = "503"
+          docker compose -f deploy/docker-compose.yml exec -T api vulpulse version
+      - name: Dump logs on failure
+        if: failure()
+        run: docker compose -f deploy/docker-compose.yml logs --tail=200
+      - name: Stop stack
+        if: always()
+        run: docker compose -f deploy/docker-compose.yml down -v
+
   audit:
     name: dependency audit
     runs-on: ubuntu-latest
