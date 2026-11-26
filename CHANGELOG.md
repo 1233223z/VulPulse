@@ -5,6 +5,22 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.0] - 2026-11-26
+
+### Added
+
+- AI summary generation from the admin vulnerability detail page, with CSRF
+  protection and a regenerate action.
+- CSV export in the CLI, API and dashboard, preserving the active filters.
+- CSV spreadsheet formula-injection protection for untrusted cells.
+- Eager loading for CSV-related products, CWEs and source counts.
+
+### Verified
+
+- Detailed API/UI summary caching, disabled-provider behavior and admin-only
+  generation are covered by integration tests.
+- CSV export is covered through the API and a formula-injection unit test.
+
 ## [0.10.0] - 2026-11-26
 
 ### Added
@@ -268,6 +284,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   data volume and health checks.
 - CI across Python 3.10, 3.12 and 3.14, plus a container build job.
 
+[0.11.0]: https://github.com/1233223z/VulPulse/releases/tag/v0.11.0
 [0.10.0]: https://github.com/1233223z/VulPulse/releases/tag/v0.10.0
 [0.9.0]: https://github.com/1233223z/VulPulse/releases/tag/v0.9.0
 [0.8.0]: https://github.com/1233223z/VulPulse/releases/tag/v0.8.0

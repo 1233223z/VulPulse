@@ -9,7 +9,7 @@ Collect · Normalize · Deduplicate · Score · Alert
 [![CI](https://github.com/1233223z/VulPulse/actions/workflows/ci.yml/badge.svg)](https://github.com/1233223z/VulPulse/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Status](https://img.shields.io/badge/status-v0.10.0-orange)
+![Status](https://img.shields.io/badge/status-v0.11.0-orange)
 
 </div>
 
@@ -19,7 +19,7 @@ them across sources, enriches them with exploit intelligence, and exposes the
 result through a REST API, a web dashboard, and configurable alerts
 (WeCom / email).
 
-> **Status:** `v0.10.0`. The API and database schema may change before `v1.0`.
+> **Status:** `v0.11.0`. The API and database schema may change before `v1.0`.
 
 ## Screenshots
 
@@ -209,7 +209,7 @@ vulpulse serve --host 0.0.0.0 --port 8000
 | `GET /api/v1/sources` | Source status and last crawl run |
 | `GET /api/v1/vendors` | Vendor volume and risk aggregation |
 | `GET /api/v1/vendors/{vendor}` | Vendor products and top-risk vulnerabilities |
-| `GET /api/v1/export` | Markdown or HTML report with the same filters |
+| `GET /api/v1/export` | Markdown, HTML or CSV report with the same filters |
 | `GET /api/v1/plugins` | Installed source plugins and their schedules |
 | `GET /metrics` | Prometheus metrics (when enabled) |
 | `POST /api/v1/admin/crawl` | Trigger one crawl (requires `X-API-Key`) |
@@ -329,6 +329,7 @@ vulpulse summarize --cve CVE-2024-0001
 ```
 
 The summary is cached on the vulnerability row and shown on its detail page.
+Signed-in admins also see a **Generate AI summary** button on the detail page.
 Use `--refresh` (or `?refresh=true` on the admin endpoint) to regenerate it.
 The admin endpoint is protected by `VULPULSE_API_KEY`:
 
@@ -519,11 +520,12 @@ CVE is never sent twice. Failed sends are retried up to
 
 ## Reports
 
-Export filtered vulnerability reports as Markdown or HTML:
+Export filtered vulnerability reports as Markdown, HTML or CSV:
 
 ```bash
 vulpulse export --format md --output report.md --risk-min 60
 vulpulse export --format html --output report.html --severity critical --kev
+vulpulse export --format csv --output report.csv --exploit
 ```
 
 Filters mirror the query API: `--q`, `--severity`, `--source`, `--vendor`,
@@ -536,9 +538,10 @@ The HTTP endpoint returns the report as an attachment:
 curl -OJ "http://localhost:8000/api/v1/export?format=md&risk_min=60"
 ```
 
-The vulnerability list page has **Export MD / Export HTML** buttons that keep the
-active filters. HTML reports are standalone, print-friendly and escape every
-untrusted field.
+The vulnerability list page has **Export MD / Export HTML / Export CSV** buttons
+that keep the active filters. HTML reports are standalone, print-friendly and
+escape every untrusted field. CSV exports protect against spreadsheet formula
+injection by prefixing cells that begin with `=`, `+`, `-` or `@`.
 
 ## Admin UI
 
