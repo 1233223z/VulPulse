@@ -287,6 +287,7 @@ async def test_api_rate_limit_returns_429(
         first = await client.get("/api")
         second = await client.get("/api")
         blocked = await client.get("/api")
+        metrics = await client.get("/metrics")
 
     assert first.status_code == 200
     assert first.headers["X-RateLimit-Limit"] == "2"
@@ -296,6 +297,12 @@ async def test_api_rate_limit_returns_429(
     assert blocked.status_code == 429
     assert blocked.json() == {"detail": "Rate limit exceeded"}
     assert int(blocked.headers["Retry-After"]) >= 1
+    # Rate-limited requests still get a request ID and are observed in metrics.
+    assert blocked.headers["X-Request-ID"]
+    assert blocked.headers["X-Response-Time-ms"]
+    assert (
+        'vulpulse_http_requests_total{method="GET",route="unmatched",status="429"}' in metrics.text
+    )
 
 
 async def test_api_rate_limit_uses_trusted_proxy_header(

@@ -128,6 +128,42 @@ def create_app() -> FastAPI:
         if request.url.path.startswith(("/admin", "/api/v1/admin")):
             response.headers.setdefault("Cache-Control", "no-store")
 
+    # Middleware is registered inside-out: the last one added is the outermost.
+    # ``security_headers`` therefore runs first (so it can short-circuit a
+    # rate-limited request), while ``observe_request`` wraps it and still sees
+    # the 429 response — it gets a request ID and is counted in the metrics.
+    @application.middleware("http")
+    async def security_headers(
+        request: Request,
+        call_next: Callable[[Request], Awaitable[Response]],
+    ) -> Response:
+        is_api = request.url.path == "/api" or request.url.path.startswith("/api/")
+        rate_headers: dict[str, str] = {}
+
+        if is_api and rate_limiter.enabled:
+            result = rate_limiter.check(client_ip(request, trusted_proxies))
+            rate_headers = {
+                "X-RateLimit-Limit": str(rate_limiter.limit),
+                "X-RateLimit-Remaining": str(result.remaining),
+            }
+            if not result.allowed:
+                blocked = JSONResponse(
+                    {"detail": "Rate limit exceeded"},
+                    status_code=429,
+                    headers={
+                        **rate_headers,
+                        "Retry-After": str(result.retry_after),
+                    },
+                )
+                apply_security_headers(request, blocked)
+                return blocked
+
+        response = await call_next(request)
+        for name, value in rate_headers.items():
+            response.headers.setdefault(name, value)
+        apply_security_headers(request, response)
+        return response
+
     @application.middleware("http")
     async def observe_request(
         request: Request,
@@ -158,38 +194,6 @@ def create_app() -> FastAPI:
             response.status_code,
             duration * 1000,
         )
-        return response
-
-    @application.middleware("http")
-    async def security_headers(
-        request: Request,
-        call_next: Callable[[Request], Awaitable[Response]],
-    ) -> Response:
-        is_api = request.url.path == "/api" or request.url.path.startswith("/api/")
-        rate_headers: dict[str, str] = {}
-
-        if is_api and rate_limiter.enabled:
-            result = rate_limiter.check(client_ip(request, trusted_proxies))
-            rate_headers = {
-                "X-RateLimit-Limit": str(rate_limiter.limit),
-                "X-RateLimit-Remaining": str(result.remaining),
-            }
-            if not result.allowed:
-                response = JSONResponse(
-                    {"detail": "Rate limit exceeded"},
-                    status_code=429,
-                    headers={
-                        **rate_headers,
-                        "Retry-After": str(result.retry_after),
-                    },
-                )
-                apply_security_headers(request, response)
-                return response
-
-        response = await call_next(request)
-        for name, value in rate_headers.items():
-            response.headers.setdefault(name, value)
-        apply_security_headers(request, response)
         return response
 
     @application.get("/api", include_in_schema=False)
