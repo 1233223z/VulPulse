@@ -34,6 +34,8 @@ def main() -> int:
         "compile",
         "pyproject.toml",
         "--universal",
+        "--python-version",
+        "3.10",
         "--generate-hashes",
         "--unsafe-package",
         "vulpulse",

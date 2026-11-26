@@ -27,6 +27,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   frontend are pinned by digest.
 - `SECURITY.md` now documents trust boundaries, controls and residual risks.
 
+### Fixed
+
+- Universal requirement locks are now resolved against Python 3.10, so
+  `pip install --require-hashes` works on every supported Python version.
+  FastAPI/Starlette use Python-version markers where upstream dropped 3.10.
+
 ### Changed
 
 - Crawler `User-Agent` now reflects the running VulPulse version.
