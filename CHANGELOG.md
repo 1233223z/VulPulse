@@ -5,6 +5,20 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.13.2] - 2026-11-26
+
+### Fixed
+
+- Corrupt or unreadable SQLite backups now produce a clear `BackupError`
+  instead of leaking `sqlite3.DatabaseError` to the CLI.
+- Replaced the deprecated 422 status constant with the current one.
+
+### Changed
+
+- Expanded CLI, admin, notifier, NVD, backup and AI-summary error-path tests.
+- Raised the CI coverage floor from 75% to 80%; the current suite measures
+  about 89% on Python 3.14 and 85% on Python 3.10.
+
 ## [0.13.1] - 2026-11-26
 
 ### Changed
@@ -336,6 +350,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   data volume and health checks.
 - CI across Python 3.10, 3.12 and 3.14, plus a container build job.
 
+[0.13.2]: https://github.com/1233223z/VulPulse/releases/tag/v0.13.2
 [0.13.1]: https://github.com/1233223z/VulPulse/releases/tag/v0.13.1
 [0.13.0]: https://github.com/1233223z/VulPulse/releases/tag/v0.13.0
 [0.12.0]: https://github.com/1233223z/VulPulse/releases/tag/v0.12.0
