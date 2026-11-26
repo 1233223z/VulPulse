@@ -33,9 +33,19 @@ def test_webhook_url_requires_https_and_allowlisted_host() -> None:
         )
 
 
-def test_channel_rejects_non_https_url() -> None:
+def test_channel_rejects_empty_or_non_https_url() -> None:
+    with pytest.raises(ValueError, match="requires"):
+        WeComChannel("")
     with pytest.raises(ValueError, match="HTTPS"):
         WeComChannel("http://qyapi.weixin.qq.com/hook")
+
+
+def test_webhook_url_rejects_missing_host_and_empty_allowlist() -> None:
+    with pytest.raises(ValueError, match="no host"):
+        validate_webhook_url("https:///hook", "")
+
+    # An empty allowlist means no host restriction beyond HTTPS.
+    validate_webhook_url("https://wecom.test/hook", "")
 
 
 async def test_send_posts_markdown_payload() -> None:
@@ -71,3 +81,49 @@ async def test_send_raises_on_business_error() -> None:
             await channel.send(MESSAGE)
     finally:
         await client.aclose()
+
+
+async def test_send_raises_on_http_error() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(500, text="boom")
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    channel = WeComChannel("https://wecom.test/webhook", client=client)
+
+    try:
+        with pytest.raises(RuntimeError, match="HTTP 500"):
+            await channel.send(MESSAGE)
+    finally:
+        await client.aclose()
+
+
+async def test_send_raises_on_request_error() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("offline", request=request)
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    channel = WeComChannel("https://wecom.test/webhook", client=client)
+
+    try:
+        with pytest.raises(RuntimeError, match="request failed"):
+            await channel.send(MESSAGE)
+    finally:
+        await client.aclose()
+
+
+async def test_send_rejects_invalid_json_and_closes_owned_client() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, text="not-json")
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    channel = WeComChannel("https://wecom.test/webhook", client=client)
+
+    try:
+        with pytest.raises(RuntimeError, match="invalid JSON"):
+            await channel.send(MESSAGE)
+    finally:
+        await client.aclose()
+
+    owned = WeComChannel("https://wecom.test/webhook")
+    await owned.close()
+    assert owned._client.is_closed

@@ -3,6 +3,8 @@ from __future__ import annotations
 import smtplib
 import ssl
 
+import pytest
+
 from vulpulse.config import Settings
 from vulpulse.notifier.base import NotificationMessage
 from vulpulse.notifier.email import EmailChannel
@@ -13,6 +15,31 @@ MESSAGE = NotificationMessage(
     markdown="markdown",
     url="https://example.test",
 )
+
+
+def test_rejects_missing_recipients() -> None:
+    settings = Settings(_env_file=None)  # type: ignore[call-arg]
+
+    with pytest.raises(ValueError, match="non-empty"):
+        EmailChannel({"to": []}, settings)
+    with pytest.raises(ValueError, match="non-empty"):
+        EmailChannel({"to": 42}, settings)
+
+
+def test_requires_smtp_host_and_sender() -> None:
+    channel = EmailChannel({"to": ["to@example.test"]}, Settings(_env_file=None))  # type: ignore[call-arg]
+
+    with pytest.raises(RuntimeError, match="SMTP host"):
+        channel._send_sync(MESSAGE)
+
+
+def test_accepts_single_recipient_string() -> None:
+    channel = EmailChannel(
+        {"to": "to@example.test"},
+        Settings(_env_file=None),  # type: ignore[call-arg]
+    )
+
+    assert channel.recipients == ["to@example.test"]
 
 
 def test_starttls_uses_verified_context(monkeypatch) -> None:
