@@ -23,6 +23,7 @@ from vulpulse.api.routers import (
     admin,
     export,
     health,
+    plugins,
     sources,
     stats,
     vendors,
@@ -30,6 +31,7 @@ from vulpulse.api.routers import (
 )
 from vulpulse.config import get_settings
 from vulpulse.logging import setup_logging
+from vulpulse.plugins import load_plugins
 from vulpulse.web.admin import router as admin_web_router
 from vulpulse.web.routes import STATIC_DIR
 from vulpulse.web.routes import router as web_router
@@ -50,6 +52,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 
 def create_app() -> FastAPI:
     settings = get_settings()
+    load_plugins(settings)
     docs_enabled = settings.docs_enabled
     if docs_enabled is None:
         docs_enabled = settings.env != "prod"
@@ -96,6 +99,7 @@ def create_app() -> FastAPI:
     application.include_router(sources.router, prefix="/api/v1")
     application.include_router(vendors.router, prefix="/api/v1")
     application.include_router(export.router, prefix="/api/v1")
+    application.include_router(plugins.router, prefix="/api/v1")
     application.include_router(admin.router, prefix="/api/v1")
     application.include_router(web_router)
     application.include_router(admin_web_router)

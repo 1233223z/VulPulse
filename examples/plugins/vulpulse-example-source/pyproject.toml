@@ -1,0 +1,17 @@
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[project]
+name = "vulpulse-example-source"
+version = "0.1.0"
+description = "Example source plugin for VulPulse"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["vulpulse>=0.6,<0.7"]
+
+[project.entry-points."vulpulse.sources"]
+example = "vulpulse_example_source:ExampleSource"
+
+[tool.hatch.build.targets.wheel]
+packages = ["vulpulse_example_source"]

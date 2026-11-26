@@ -54,11 +54,65 @@ def init_db() -> None:
 
 @app.command("sources")
 def list_sources() -> None:
-    """List registered crawler sources."""
-    from vulpulse.crawler import available_sources
+    """List registered crawler source names."""
+    from vulpulse.plugins import plugin_infos
 
-    for name in available_sources():
-        typer.echo(name)
+    for plugin in plugin_infos(get_settings()):
+        typer.echo(plugin.name)
+
+
+@app.command("plugins")
+def list_plugins(
+    json_output: bool = typer.Option(False, "--json", help="Emit machine-readable JSON."),
+) -> None:
+    """List source plugins, schedules and load failures."""
+    import json
+
+    from vulpulse.plugins import plugin_failures, plugin_infos
+
+    infos = plugin_infos(get_settings())
+    failures = plugin_failures()
+
+    if json_output:
+        typer.echo(
+            json.dumps(
+                {
+                    "plugins": [
+                        {
+                            "name": info.name,
+                            "description": info.description,
+                            "kind": info.kind,
+                            "interval_seconds": info.interval_seconds,
+                            "lookback_days": info.lookback_days,
+                            "run_on_start": info.run_on_start,
+                            "api_version": info.api_version,
+                            "module": info.module,
+                            "entry_point": info.entry_point,
+                            "builtin": info.builtin,
+                        }
+                        for info in infos
+                    ],
+                    "failures": [
+                        {"entry_point": failure.entry_point, "error": failure.error}
+                        for failure in failures
+                    ],
+                },
+                indent=2,
+            )
+        )
+        return
+
+    typer.echo("NAME\tKIND\tINTERVAL\tBUILTIN\tDESCRIPTION")
+    for info in infos:
+        typer.echo(
+            f"{info.name}\t{info.kind}\t{info.interval_seconds}s\t"
+            f"{info.builtin}\t{info.description}"
+        )
+    for failure in failures:
+        typer.echo(
+            f"FAILED\t{failure.entry_point}\t{failure.error}",
+            err=True,
+        )
 
 
 @app.command()
@@ -82,9 +136,11 @@ def crawl(
 
     from vulpulse.crawler import create_source
     from vulpulse.ingest import IngestService
+    from vulpulse.plugins import load_plugins
     from vulpulse.timeutils import utcnow
 
     settings = get_settings()
+    load_plugins(settings)
 
     async def _run():
         crawler = create_source(source, settings)

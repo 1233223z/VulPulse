@@ -35,6 +35,9 @@ class Settings(BaseSettings):
     data_dir: Path = Path("data")
     log_dir: Path = Path("data/logs")
 
+    # Source plugins
+    plugins_enabled: bool = True
+
     # Database
     database_url: str = "sqlite+aiosqlite:///./data/vulpulse.db"
 

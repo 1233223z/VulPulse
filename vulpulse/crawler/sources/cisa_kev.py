@@ -6,7 +6,8 @@ from collections.abc import AsyncIterator
 from datetime import date, datetime
 from typing import Any
 
-from vulpulse.crawler.base import BaseSource
+from vulpulse.config import Settings
+from vulpulse.crawler.base import BaseSource, SchedulePolicy
 from vulpulse.crawler.models import RawProduct, RawVuln
 from vulpulse.crawler.registry import register_source
 
@@ -19,7 +20,15 @@ class CisaKevSource(BaseSource):
 
     name = "cisa_kev"
     kind = "feed"
+    description = "CISA Known Exploited Vulnerabilities catalog."
     default_rate_limit = (1, 10.0)
+
+    @classmethod
+    def plugin_schedule(cls, settings: Settings) -> SchedulePolicy:
+        return SchedulePolicy(
+            interval_seconds=settings.kev_interval_hours * 3600,
+            run_on_start=settings.scheduler_run_on_start,
+        )
 
     async def fetch(
         self,

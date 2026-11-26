@@ -15,6 +15,7 @@ from vulpulse.db.session import Database
 from vulpulse.enrich.epss import EpssEnricher, EpssStats
 from vulpulse.ingest import IngestService, IngestStats
 from vulpulse.notifier.service import NotificationService, NotificationStats
+from vulpulse.plugins import plugin_infos
 from vulpulse.timeutils import utcnow
 
 
@@ -29,29 +30,19 @@ class JobSchedule:
 
 
 def default_schedules(settings: Settings) -> list[JobSchedule]:
+    crawl_schedules = [
+        JobSchedule(
+            job_id=f"crawl:{plugin.name}",
+            kind="crawl",
+            target=plugin.name,
+            interval_seconds=plugin.interval_seconds,
+            lookback_days=plugin.lookback_days,
+            run_on_start=plugin.run_on_start,
+        )
+        for plugin in plugin_infos(settings)
+    ]
     return [
-        JobSchedule(
-            job_id="crawl:nvd",
-            kind="crawl",
-            target="nvd",
-            interval_seconds=settings.nvd_interval_minutes * 60,
-            lookback_days=settings.nvd_lookback_days,
-            run_on_start=settings.scheduler_run_on_start,
-        ),
-        JobSchedule(
-            job_id="crawl:cisa_kev",
-            kind="crawl",
-            target="cisa_kev",
-            interval_seconds=settings.kev_interval_hours * 3600,
-            run_on_start=settings.scheduler_run_on_start,
-        ),
-        JobSchedule(
-            job_id="crawl:exploitdb",
-            kind="crawl",
-            target="exploitdb",
-            interval_seconds=settings.exploitdb_interval_hours * 3600,
-            run_on_start=settings.scheduler_run_on_start,
-        ),
+        *crawl_schedules,
         JobSchedule(
             job_id="enrich:epss",
             kind="enrich",

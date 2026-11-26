@@ -17,6 +17,7 @@ data
 docs
 tests
 scripts
+examples
 .env
 .env.*
 !.env.example

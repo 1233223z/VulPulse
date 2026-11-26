@@ -27,6 +27,11 @@ def available_sources() -> list[str]:
     return sorted(_REGISTRY)
 
 
+def registered_sources() -> dict[str, type[BaseSource]]:
+    """Return a copy of the current source class registry."""
+    return dict(_REGISTRY)
+
+
 def create_source(name: str, settings: Settings) -> BaseSource:
     try:
         cls = _REGISTRY[name]

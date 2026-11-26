@@ -6,7 +6,8 @@ from collections.abc import AsyncIterator, Iterator
 from datetime import datetime, timedelta
 from typing import Any
 
-from vulpulse.crawler.base import BaseSource
+from vulpulse.config import Settings
+from vulpulse.crawler.base import BaseSource, SchedulePolicy
 from vulpulse.crawler.models import RawProduct, RawVuln
 from vulpulse.crawler.registry import register_source
 from vulpulse.timeutils import parse_datetime, to_naive_utc, utcnow
@@ -22,11 +23,20 @@ class NvdSource(BaseSource):
 
     name = "nvd"
     kind = "api"
+    description = "NVD CVE API 2.0 with incremental lastModified windows."
 
     @property
     def default_rate_limit(self) -> tuple[int, float]:
         # NVD allows 5 requests / 30s anonymously, 50 / 30s with an API key.
         return (50, 30.0) if self.settings.nvd_api_key else (5, 30.0)
+
+    @classmethod
+    def plugin_schedule(cls, settings: Settings) -> SchedulePolicy:
+        return SchedulePolicy(
+            interval_seconds=settings.nvd_interval_minutes * 60,
+            lookback_days=settings.nvd_lookback_days,
+            run_on_start=settings.scheduler_run_on_start,
+        )
 
     async def fetch(
         self,

@@ -44,6 +44,19 @@ class VulnPage(BaseModel):
     pages: int
 
 
+class PluginInfoOut(BaseModel):
+    name: str
+    description: str
+    kind: str
+    interval_seconds: int
+    lookback_days: int
+    run_on_start: bool
+    api_version: int
+    module: str
+    entry_point: str | None
+    builtin: bool
+
+
 class SourceRecordOut(BaseModel):
     source: str
     source_vuln_id: str

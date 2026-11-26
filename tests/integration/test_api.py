@@ -187,6 +187,17 @@ async def test_sources(client: AsyncClient) -> None:
     assert data[0]["last_run"]["status"] == "success"
 
 
+async def test_plugins_endpoint(client: AsyncClient) -> None:
+    response = await client.get("/api/v1/plugins")
+
+    assert response.status_code == 200
+    plugins = {plugin["name"]: plugin for plugin in response.json()}
+    assert {"nvd", "cisa_kev", "exploitdb"} <= set(plugins)
+    assert plugins["nvd"]["builtin"] is True
+    assert plugins["nvd"]["api_version"] == 1
+    assert plugins["nvd"]["interval_seconds"] > 0
+
+
 async def test_admin_is_disabled_without_key(client: AsyncClient) -> None:
     response = await client.post("/api/v1/admin/crawl", json={"source": "nvd"})
 
