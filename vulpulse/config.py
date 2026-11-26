@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import contextlib
+import ipaddress
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
 from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from vulpulse import __version__
 
 
 class Settings(BaseSettings):
@@ -41,6 +44,12 @@ class Settings(BaseSettings):
     session_https_only: bool = False
     session_max_age_hours: int = 8
 
+    # Public API
+    api_rate_limit_per_minute: int = 120
+    trusted_proxies: str = ""
+    # None means "enabled outside prod"; set explicitly to override.
+    docs_enabled: bool | None = None
+
     # Data sources
     nvd_api_key: str = ""
     nvd_base_url: str = "https://services.nvd.nist.gov/rest/json/cves/2.0"
@@ -54,7 +63,7 @@ class Settings(BaseSettings):
 
     # HTTP client
     http_timeout_seconds: float = 30.0
-    http_user_agent: str = "VulPulse/0.1"
+    http_user_agent: str = f"VulPulse/{__version__}"
     http_max_response_bytes: int = 64 * 1024 * 1024
     http_max_redirects: int = 3
 
@@ -136,6 +145,29 @@ class Settings(BaseSettings):
     def _non_negative_lookback(cls, value: int) -> int:
         if value < 0:
             raise ValueError("nvd_lookback_days must be zero or positive")
+        return value
+
+    @field_validator("api_rate_limit_per_minute")
+    @classmethod
+    def _non_negative_rate_limit(cls, value: int) -> int:
+        if value < 0:
+            raise ValueError("api_rate_limit_per_minute must be zero or positive")
+        return value
+
+    @field_validator("docs_enabled", mode="before")
+    @classmethod
+    def _empty_docs_as_none(cls, value: object) -> object:
+        if value is None or value == "":
+            return None
+        return value
+
+    @field_validator("trusted_proxies")
+    @classmethod
+    def _valid_trusted_proxies(cls, value: str) -> str:
+        for item in value.split(","):
+            item = item.strip()
+            if item:
+                ipaddress.ip_network(item, strict=False)
         return value
 
     def ensure_dirs(self) -> None:

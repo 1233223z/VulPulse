@@ -12,6 +12,7 @@ from tenacity import (
     wait_exponential_jitter,
 )
 
+from vulpulse import __version__
 from vulpulse.crawler.rate_limit import AsyncRateLimiter
 
 
@@ -38,7 +39,7 @@ class HttpClient:
         self,
         *,
         timeout: float = 30.0,
-        user_agent: str = "VulPulse/0.1",
+        user_agent: str = f"VulPulse/{__version__}",
         rate_limiter: AsyncRateLimiter | None = None,
         max_attempts: int = 3,
         retry_initial_wait: float = 1.0,

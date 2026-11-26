@@ -10,6 +10,7 @@ from urllib.parse import quote
 from fastapi import Request
 from fastapi.responses import RedirectResponse
 
+from vulpulse.api.rate_limit import client_ip, parse_trusted_proxies
 from vulpulse.config import get_settings
 
 ADMIN_SESSION_KEY = "vul_pulse_admin"
@@ -74,7 +75,8 @@ def safe_next(value: str | None) -> str | None:
 
 
 def _login_key(request: Request) -> str:
-    return request.client.host if request.client else "unknown"
+    settings = get_settings()
+    return client_ip(request, parse_trusted_proxies(settings.trusted_proxies))
 
 
 def _recent(attempts: list[float], now: float) -> list[float]:

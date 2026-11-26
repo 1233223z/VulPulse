@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import httpx
 import pytest
-from httpx import AsyncClient
+from httpx import ASGITransport, AsyncClient
 
+from vulpulse.api.app import create_app
 from vulpulse.config import get_settings
 
 
@@ -261,3 +262,80 @@ async def test_admin_rejects_unknown_source(
     )
 
     assert response.status_code == 400
+
+
+async def test_api_rate_limit_returns_429(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("VULPULSE_API_RATE_LIMIT_PER_MINUTE", "2")
+    get_settings.cache_clear()
+    application = create_app()
+    transport = ASGITransport(app=application)
+
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        first = await client.get("/api")
+        second = await client.get("/api")
+        blocked = await client.get("/api")
+
+    assert first.status_code == 200
+    assert first.headers["X-RateLimit-Limit"] == "2"
+    assert first.headers["X-RateLimit-Remaining"] == "1"
+    assert second.status_code == 200
+    assert second.headers["X-RateLimit-Remaining"] == "0"
+    assert blocked.status_code == 429
+    assert blocked.json() == {"detail": "Rate limit exceeded"}
+    assert int(blocked.headers["Retry-After"]) >= 1
+
+
+async def test_api_rate_limit_uses_trusted_proxy_header(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("VULPULSE_API_RATE_LIMIT_PER_MINUTE", "1")
+    monkeypatch.setenv("VULPULSE_TRUSTED_PROXIES", "10.0.0.0/8")
+    get_settings.cache_clear()
+    application = create_app()
+    transport = ASGITransport(app=application, client=("10.0.0.5", 12345))
+
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        first = await client.get("/api", headers={"X-Forwarded-For": "203.0.113.10"})
+        blocked = await client.get("/api", headers={"X-Forwarded-For": "203.0.113.10"})
+        other_client = await client.get("/api", headers={"X-Forwarded-For": "203.0.113.11"})
+
+    assert first.status_code == 200
+    assert blocked.status_code == 429
+    assert other_client.status_code == 200
+
+
+async def test_docs_are_disabled_in_prod_by_default(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("VULPULSE_ENV", "prod")
+    monkeypatch.setenv("VULPULSE_SESSION_SECRET", "test-session-secret")
+    get_settings.cache_clear()
+    application = create_app()
+    transport = ASGITransport(app=application)
+
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        docs = await client.get("/docs")
+        schema = await client.get("/openapi.json")
+        index = await client.get("/api")
+
+    assert docs.status_code == 404
+    assert schema.status_code == 404
+    assert index.json()["docs"] is None
+
+
+async def test_docs_can_be_forced_in_prod(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("VULPULSE_ENV", "prod")
+    monkeypatch.setenv("VULPULSE_SESSION_SECRET", "test-session-secret")
+    monkeypatch.setenv("VULPULSE_DOCS_ENABLED", "true")
+    get_settings.cache_clear()
+    application = create_app()
+    transport = ASGITransport(app=application)
+
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        docs = await client.get("/docs")
+
+    assert docs.status_code == 200
