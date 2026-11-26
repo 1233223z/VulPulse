@@ -9,7 +9,7 @@ Collect · Normalize · Deduplicate · Score · Alert
 [![CI](https://github.com/1233223z/VulPulse/actions/workflows/ci.yml/badge.svg)](https://github.com/1233223z/VulPulse/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Status](https://img.shields.io/badge/status-v0.13.0-orange)
+![Status](https://img.shields.io/badge/status-v0.13.1-orange)
 
 </div>
 
@@ -19,7 +19,7 @@ them across sources, enriches them with exploit intelligence, and exposes the
 result through a REST API, a web dashboard, and configurable alerts
 (WeCom / email).
 
-> **Status:** `v0.13.0`. The API and database schema may change before `v1.0`.
+> **Status:** `v0.13.1`. The API and database schema may change before `v1.0`.
 
 ## Screenshots
 
@@ -153,7 +153,8 @@ regenerate both locks and run the test suite:
 
 ```bash
 python -m pip install "uv>=0.13,<0.14"
-python scripts/update_locks.py
+python scripts/update_locks.py            # preserve current versions
+python scripts/update_locks.py --upgrade  # take the newest allowed versions
 pytest
 ```
 

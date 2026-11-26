@@ -5,6 +5,15 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.13.1] - 2026-11-26
+
+### Changed
+
+- Refreshed hash-locked dependencies; `typer` is now 0.29.3 on Python 3.11+
+  (0.29.1 remains for Python 3.10 compatibility).
+- `scripts/update_locks.py --upgrade` explicitly upgrades locked packages while
+  preserving the default version-preserving behavior.
+
 ## [0.13.0] - 2026-11-26
 
 ### Added
@@ -327,6 +336,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   data volume and health checks.
 - CI across Python 3.10, 3.12 and 3.14, plus a container build job.
 
+[0.13.1]: https://github.com/1233223z/VulPulse/releases/tag/v0.13.1
 [0.13.0]: https://github.com/1233223z/VulPulse/releases/tag/v0.13.0
 [0.12.0]: https://github.com/1233223z/VulPulse/releases/tag/v0.12.0
 [0.11.1]: https://github.com/1233223z/VulPulse/releases/tag/v0.11.1
