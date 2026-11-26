@@ -18,8 +18,8 @@ OSV_QUERY = "https://api.osv.dev/v1/query"
 
 # Keep in sync with vulpulse/web/static/vendor/README.md.
 NPM_PACKAGES = (
-    ("bootstrap", "5.3.3"),
-    ("chart.js", "4.4.3"),
+    ("bootstrap", "5.3.9"),
+    ("chart.js", "4.6.2"),
 )
 
 

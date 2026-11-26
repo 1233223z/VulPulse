@@ -105,12 +105,21 @@ async def test_static_stylesheet(client: AsyncClient) -> None:
 
 async def test_vendored_assets_are_served(client: AsyncClient) -> None:
     stylesheet = await client.get("/static/vendor/bootstrap.min.css")
+    bundle = await client.get("/static/vendor/bootstrap.bundle.min.js")
     chart = await client.get("/static/vendor/chart.umd.min.js")
+    license_file = await client.get("/static/vendor/LICENSE.bootstrap")
 
     assert stylesheet.status_code == 200
+    assert bundle.status_code == 200
     assert chart.status_code == 200
+    assert license_file.status_code == 200
     assert stylesheet.headers["content-type"].startswith("text/css")
+    assert bundle.headers["content-type"].startswith("text/javascript")
     assert chart.headers["content-type"].startswith("text/javascript")
+    assert "v5.3.9" in stylesheet.text
+    assert "v5.3.9" in bundle.text
+    assert "Chart.js v4.6.2" in chart.text
+    assert "MIT" in license_file.text
 
 
 async def test_api_index_still_works(client: AsyncClient) -> None:
