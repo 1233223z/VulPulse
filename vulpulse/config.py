@@ -89,6 +89,15 @@ class Settings(BaseSettings):
     risk_weight_exploit: float = 0.10
     risk_weight_recency: float = 0.05
 
+    # Optional AI summaries
+    llm_enabled: bool = False
+    llm_api_key: str = ""
+    llm_model: str = "claude-opus-5-5"
+    llm_effort: Literal["low", "medium", "high"] = "low"
+    llm_max_input_chars: int = 12000
+    llm_max_tokens: int = 1024
+    llm_timeout_seconds: float = 60.0
+
     # Notifications
     notify_max_attempts: int = 3
     notify_initial_lookback_days: int = 7
@@ -149,6 +158,27 @@ class Settings(BaseSettings):
     def _non_negative_lookback(cls, value: int) -> int:
         if value < 0:
             raise ValueError("nvd_lookback_days must be zero or positive")
+        return value
+
+    @field_validator("llm_max_input_chars", "llm_max_tokens")
+    @classmethod
+    def _positive_llm_limits(cls, value: int) -> int:
+        if value <= 0:
+            raise ValueError("LLM limits must be positive")
+        return value
+
+    @field_validator("llm_timeout_seconds")
+    @classmethod
+    def _positive_llm_timeout(cls, value: float) -> float:
+        if value <= 0:
+            raise ValueError("llm_timeout_seconds must be positive")
+        return value
+
+    @field_validator("llm_model")
+    @classmethod
+    def _non_empty_llm_model(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("llm_model must not be empty")
         return value
 
     @field_validator("api_rate_limit_per_minute")

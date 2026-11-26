@@ -75,6 +75,9 @@ class Vulnerability(Base, TimestampMixin):
     status: Mapped[str] = mapped_column(String(24), default="active", nullable=False)
     published_at: Mapped[datetime | None] = mapped_column(DateTime)
     modified_at: Mapped[datetime | None] = mapped_column(DateTime)
+    ai_summary: Mapped[str | None] = mapped_column(Text)
+    ai_summary_model: Mapped[str | None] = mapped_column(String(64))
+    ai_summary_at: Mapped[datetime | None] = mapped_column(DateTime)
 
     source_records: Mapped[list[SourceRecord]] = relationship(
         back_populates="vulnerability", cascade="all, delete-orphan"

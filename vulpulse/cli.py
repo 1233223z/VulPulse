@@ -160,6 +160,47 @@ def crawl(
 
 
 @app.command()
+def summarize(
+    cve: str = typer.Option(..., "--cve", "-c", help="CVE or vulnerability ID."),
+    refresh: bool = typer.Option(False, "--refresh", help="Regenerate an existing summary."),
+) -> None:
+    """Generate and cache an optional AI summary for one vulnerability."""
+    import asyncio
+
+    from vulpulse.ai.service import SummaryService
+    from vulpulse.ai.summarizer import SummaryError
+    from vulpulse.db.session import get_database
+
+    settings = get_settings()
+    if not settings.llm_enabled:
+        typer.echo("AI summaries are disabled. Set VULPULSE_LLM_ENABLED=true.", err=True)
+        raise typer.Exit(code=2)
+    if not settings.llm_api_key:
+        typer.echo("VULPULSE_LLM_API_KEY is not configured.", err=True)
+        raise typer.Exit(code=2)
+
+    async def _run():
+        async with get_database().session() as session:
+            return await SummaryService(session, settings=settings).generate(
+                cve,
+                refresh=refresh,
+            )
+
+    try:
+        outcome = asyncio.run(_run())
+    except SummaryError as exc:
+        typer.echo(f"Summary generation failed: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+
+    if outcome is None:
+        typer.echo(f"Vulnerability not found: {cve}", err=True)
+        raise typer.Exit(code=1)
+    if outcome.cached:
+        typer.echo(f"Using cached summary from {outcome.generated_at}.")
+    typer.echo(outcome.text)
+
+
+@app.command()
 def enrich(
     source: str = typer.Option(
         "epss",

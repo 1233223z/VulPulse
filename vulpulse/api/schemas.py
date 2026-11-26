@@ -113,10 +113,20 @@ class VulnDetail(VulnSummary):
     kev_due_date: date | None
     status: str
     risk_breakdown: dict[str, Any] | None
+    ai_summary: str | None = None
+    ai_summary_model: str | None = None
+    ai_summary_at: datetime | None = None
     sources: list[SourceRecordOut]
     products: list[ProductOut]
     cwes: list[CweOut]
     references: list[ReferenceOut]
+
+
+class SummaryOut(BaseModel):
+    text: str
+    model: str | None
+    generated_at: datetime | None
+    cached: bool
 
 
 class VendorSummary(BaseModel):

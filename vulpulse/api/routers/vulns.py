@@ -113,6 +113,9 @@ async def get_vuln(
         kev_due_date=vuln.kev_due_date,
         status=vuln.status,
         risk_breakdown=risk.components,
+        ai_summary=vuln.ai_summary,
+        ai_summary_model=vuln.ai_summary_model,
+        ai_summary_at=vuln.ai_summary_at,
         sources=[
             SourceRecordOut(
                 source=record.source.name,
