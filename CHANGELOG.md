@@ -5,6 +5,21 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2026-11-26
+
+### Added
+
+- Prometheus metrics at `/metrics` with bounded route-template labels,
+  request counters, latency histograms and `X-Response-Time-ms` response
+  headers.
+- `VULPULSE_METRICS_ENABLED` to disable the metrics endpoint.
+- Documentation for scraping, PromQL examples and metrics endpoint security.
+
+### Changed
+
+- `prometheus-client` is now a runtime dependency; all deployment paths install
+  it through the hash-locked requirements files.
+
 ## [0.7.0] - 2026-11-26
 
 ### Added
@@ -215,6 +230,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   data volume and health checks.
 - CI across Python 3.10, 3.12 and 3.14, plus a container build job.
 
+[0.8.0]: https://github.com/1233223z/VulPulse/releases/tag/v0.8.0
 [0.7.0]: https://github.com/1233223z/VulPulse/releases/tag/v0.7.0
 [0.6.0]: https://github.com/1233223z/VulPulse/releases/tag/v0.6.0
 [0.5.3]: https://github.com/1233223z/VulPulse/releases/tag/v0.5.3

@@ -9,7 +9,7 @@ Collect · Normalize · Deduplicate · Score · Alert
 [![CI](https://github.com/1233223z/VulPulse/actions/workflows/ci.yml/badge.svg)](https://github.com/1233223z/VulPulse/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Status](https://img.shields.io/badge/status-v0.7.0-orange)
+![Status](https://img.shields.io/badge/status-v0.8.0-orange)
 
 </div>
 
@@ -19,7 +19,7 @@ them across sources, enriches them with exploit intelligence, and exposes the
 result through a REST API, a web dashboard, and configurable alerts
 (WeCom / email).
 
-> **Status:** `v0.7.0`. The API and database schema may change before `v1.0`.
+> **Status:** `v0.8.0`. The API and database schema may change before `v1.0`.
 
 ## Screenshots
 
@@ -100,7 +100,8 @@ so multiple API workers can never trigger duplicate crawls.
 Phase 2 adds a configurable 0-100 risk score (done), vendor/product correlation
 (done), Markdown/HTML reports (done), a subscription management UI (done) and
 API rate limiting (done). Phase 3 adds a source plugin system (done), a
-vulnerability relationship graph (done) and optional LLM summaries.
+vulnerability relationship graph (done) and optional LLM summaries. Operational
+readiness adds Prometheus metrics (done) and request latency headers.
 
 ## Quickstart (development)
 
@@ -206,6 +207,7 @@ vulpulse serve --host 0.0.0.0 --port 8000
 | `GET /api/v1/vendors/{vendor}` | Vendor products and top-risk vulnerabilities |
 | `GET /api/v1/export` | Markdown or HTML report with the same filters |
 | `GET /api/v1/plugins` | Installed source plugins and their schedules |
+| `GET /metrics` | Prometheus metrics (when enabled) |
 | `POST /api/v1/admin/crawl` | Trigger one crawl (requires `X-API-Key`) |
 
 Example:
@@ -307,6 +309,32 @@ curl "http://localhost:8000/api/v1/vulns/CVE-2024-0001/graph?related=20"
 Open the HTML view at `/vulns/<cve-or-id>/graph`. Graph rendering is
 server-side SVG with no CDN or JavaScript dependency, so it works in the same
 offline environment as the dashboard.
+
+## Observability
+
+The API exposes Prometheus metrics at `/metrics` by default:
+
+```bash
+curl http://localhost:8000/metrics
+```
+
+Metrics include `vulpulse_http_requests_total` and
+`vulpulse_http_request_duration_seconds`, labeled by HTTP method, bounded route
+template and status. Route labels combine the top-level scope and route
+template (for example `api:/vulns` and `vulns:/vulns/{identifier}`) to avoid
+unbounded labels from CVE identifiers. Every response also carries
+`X-Response-Time-ms`.
+
+Useful starting queries:
+
+```promql
+rate(vulpulse_http_requests_total[5m])
+histogram_quantile(0.95, sum by (le, route) (rate(vulpulse_http_request_duration_seconds_bucket[5m])))
+```
+
+Metrics are per API process; scrape every worker if you run multiple. The
+endpoint can reveal traffic patterns, so restrict it at the reverse proxy or
+set `VULPULSE_METRICS_ENABLED=false`.
 
 ## Scheduler
 
@@ -489,6 +517,7 @@ variables or `.env`. See [`.env.example`](.env.example) for the full list.
 |---|---|---|
 | `VULPULSE_ENV` | `dev` | `dev`, `test` or `prod` |
 | `VULPULSE_LOG_LEVEL` | `INFO` | Console/file log level |
+| `VULPULSE_METRICS_ENABLED` | `true` | Expose Prometheus metrics at `/metrics` |
 | `VULPULSE_PLUGINS_ENABLED` | `true` | Discover third-party source plugins |
 | `VULPULSE_DATABASE_URL` | `sqlite+aiosqlite:///./data/vulpulse.db` | SQLAlchemy URL |
 | `VULPULSE_API_KEY` | empty | Protects admin API and admin UI |
@@ -535,7 +564,7 @@ VulPulse/
 │   ├── db/           # SQLAlchemy models, sessions, repositories, migrations
 │   ├── notifier/     # subscription rules and delivery channels
 │   ├── scheduler/    # APScheduler jobs and worker entry point
-│   ├── api/          # FastAPI application and routers
+│   ├── api/          # FastAPI application, routers and Prometheus metrics
 │   ├── web/          # Jinja2 templates, static assets and graph layout
 │   ├── plugins.py    # source plugin discovery and metadata
 │   ├── graph.py      # bounded vulnerability relationship graph
@@ -579,6 +608,8 @@ Issues and pull requests are welcome. Please run `ruff check .`,
 - Source plugins are discovered from installed `vulpulse.sources` entry points.
   Plugin code runs in-process; install only trusted packages and use
   `VULPULSE_PLUGINS_ENABLED=false` when third-party discovery is not wanted.
+- `/metrics` can expose traffic patterns. Restrict it at the reverse proxy or
+  disable it with `VULPULSE_METRICS_ENABLED=false`.
 - Swagger UI and the OpenAPI schema are disabled in `prod` unless
   `VULPULSE_DOCS_ENABLED=true`.
 - `vulpulse serve` binds to `127.0.0.1` by default. Pass `--host 0.0.0.0` only
