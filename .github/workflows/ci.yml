@@ -33,7 +33,18 @@ jobs:
           ruff check .
           ruff format --check .
       - name: Test
-        run: pytest -q
+        run: |
+          set -o pipefail
+          pytest -q --tb=short 2>&1 | tee pytest.log
+      - name: Test failure summary
+        if: failure()
+        run: |
+          {
+            echo '### Pytest failure'
+            echo '```'
+            tail -200 pytest.log
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
   docker:
     name: docker build
