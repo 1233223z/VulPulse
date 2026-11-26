@@ -1,6 +1,7 @@
-# syntax=docker/dockerfile:1
+# syntax=docker/dockerfile:1@sha256:572cebbc2b15e6f84c077742952674889cb63cd5e9b80abdffcbe587b6f19183
 
-FROM python:3.12-slim AS builder
+# python:3.12-slim, OCI image index digest as of 2026-11-26.
+FROM python:3.12-slim@sha256:191083cdf6c7bda8c76158983163ead5d5cf7b77cf3033e805bb0f5296f51b4b AS builder
 
 ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PIP_NO_CACHE_DIR=1 \
@@ -12,10 +13,10 @@ WORKDIR /build
 COPY pyproject.toml README.md ./
 COPY vulpulse ./vulpulse
 
-RUN pip wheel --wheel-dir /wheels .
+RUN pip wheel --no-deps --wheel-dir /wheels .
 
 
-FROM python:3.12-slim AS runtime
+FROM python:3.12-slim@sha256:191083cdf6c7bda8c76158983163ead5d5cf7b77cf3033e805bb0f5296f51b4b AS runtime
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -29,9 +30,11 @@ RUN groupadd --system vulpulse \
 
 WORKDIR /app
 
+COPY requirements.txt /tmp/requirements.txt
 COPY --from=builder /wheels /wheels
-RUN pip install --no-index --find-links=/wheels vulpulse \
-    && rm -rf /wheels \
+RUN pip install --require-hashes -r /tmp/requirements.txt \
+    && pip install --no-index --no-deps /wheels/vulpulse-*.whl \
+    && rm -rf /wheels /tmp/requirements.txt \
     && mkdir -p /app/data \
     && chown -R vulpulse:vulpulse /app
 
