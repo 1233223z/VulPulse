@@ -52,6 +52,42 @@ def init_db() -> None:
     typer.echo("Database is up to date.")
 
 
+@app.command("backup")
+def backup_database(
+    output: Path = typer.Option(..., "--output", "-o", help="Backup file path."),
+    force: bool = typer.Option(False, "--force", help="Overwrite an existing backup."),
+) -> None:
+    """Back up the SQLite database using the online backup API."""
+    from vulpulse.db.backup import BackupError, backup_sqlite, sqlite_database_path
+
+    settings = get_settings()
+    try:
+        source = sqlite_database_path(settings.database_url)
+        size = backup_sqlite(source, output, overwrite=force)
+    except BackupError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
+    typer.echo(f"Backed up {source} to {output} ({size} bytes)")
+
+
+@app.command("restore")
+def restore_database(
+    input_path: Path = typer.Option(..., "--input", "-i", help="Backup file path."),
+    force: bool = typer.Option(False, "--force", help="Overwrite the current database."),
+) -> None:
+    """Restore a SQLite backup. Stop the API and worker first."""
+    from vulpulse.db.backup import BackupError, restore_sqlite, sqlite_database_path
+
+    settings = get_settings()
+    try:
+        target = sqlite_database_path(settings.database_url)
+        size = restore_sqlite(input_path, target, overwrite=force)
+    except BackupError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
+    typer.echo(f"Restored {input_path} to {target} ({size} bytes)")
+
+
 @app.command("sources")
 def list_sources() -> None:
     """List registered crawler source names."""
