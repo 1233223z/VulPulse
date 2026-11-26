@@ -22,6 +22,11 @@ source (NVD, CISA, Exploit-DB, FIRST).
 The latest `0.11.x` release receives security fixes. Older releases may not be
 supported.
 
+### 0.11.1
+
+- Suppressed `httpx2` and `httpcore2` INFO logs used by the Anthropic SDK so
+  provider request URLs and headers are not written to logs.
+
 ## Security model
 
 ### Trust boundaries

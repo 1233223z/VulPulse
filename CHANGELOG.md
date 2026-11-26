@@ -5,6 +5,13 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.1] - 2026-11-26
+
+### Security
+
+- Suppressed `httpx2` and `httpcore2` INFO logs used by the Anthropic SDK so
+  provider request URLs and headers cannot be written into application logs.
+
 ## [0.11.0] - 2026-11-26
 
 ### Added
@@ -284,6 +291,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   data volume and health checks.
 - CI across Python 3.10, 3.12 and 3.14, plus a container build job.
 
+[0.11.1]: https://github.com/1233223z/VulPulse/releases/tag/v0.11.1
 [0.11.0]: https://github.com/1233223z/VulPulse/releases/tag/v0.11.0
 [0.10.0]: https://github.com/1233223z/VulPulse/releases/tag/v0.10.0
 [0.9.0]: https://github.com/1233223z/VulPulse/releases/tag/v0.9.0
