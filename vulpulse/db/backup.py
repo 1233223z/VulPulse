@@ -25,8 +25,11 @@ def sqlite_database_path(database_url: str) -> Path:
 
 
 def _integrity_check(path: Path) -> None:
-    with contextlib.closing(sqlite3.connect(path)) as connection:
-        result = connection.execute("PRAGMA integrity_check").fetchone()
+    try:
+        with contextlib.closing(sqlite3.connect(path)) as connection:
+            result = connection.execute("PRAGMA integrity_check").fetchone()
+    except sqlite3.DatabaseError as exc:
+        raise BackupError(f"Could not read SQLite database: {path}") from exc
     if not result or result[0] != "ok":
         raise BackupError(f"SQLite integrity check failed for {path}")
 
@@ -49,6 +52,9 @@ def _copy_database(source: Path, target: Path) -> None:
             ) from exc
         with contextlib.suppress(OSError):
             target.chmod(0o600)
+    except sqlite3.DatabaseError as exc:
+        temporary.unlink(missing_ok=True)
+        raise BackupError(f"Could not read SQLite database: {source}") from exc
     except Exception:
         temporary.unlink(missing_ok=True)
         raise

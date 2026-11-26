@@ -81,3 +81,34 @@ def test_restore_refuses_existing_target_without_force(tmp_path) -> None:
 
     restore_sqlite(backup, source, overwrite=True)
     assert read_value(source) == "original"
+
+
+def test_backup_rejects_missing_or_corrupt_sources(tmp_path) -> None:
+    missing = tmp_path / "missing.db"
+
+    with pytest.raises(BackupError, match="does not exist"):
+        backup_sqlite(missing, tmp_path / "out.db")
+
+    corrupt = tmp_path / "corrupt.db"
+    corrupt.write_text("not a sqlite database")
+    with pytest.raises(BackupError, match="Could not read"):
+        backup_sqlite(corrupt, tmp_path / "out.db")
+
+
+def test_restore_rejects_missing_or_corrupt_backups(tmp_path) -> None:
+    target = tmp_path / "target.db"
+    create_database(target)
+    missing = tmp_path / "missing.db"
+
+    with pytest.raises(BackupError, match="does not exist"):
+        restore_sqlite(missing, target)
+
+    corrupt = tmp_path / "corrupt.db"
+    corrupt.write_text("not a sqlite database")
+    with pytest.raises(BackupError, match="Could not read"):
+        restore_sqlite(corrupt, tmp_path / "restored.db")
+
+
+def test_database_url_rejects_memory_database(tmp_path) -> None:
+    with pytest.raises(BackupError, match="memory"):
+        sqlite_database_path("sqlite+aiosqlite:///:memory:")

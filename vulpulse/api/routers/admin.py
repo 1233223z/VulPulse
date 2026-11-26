@@ -81,7 +81,7 @@ async def generate_summary(
         outcome = await service.generate(identifier, refresh=refresh)
     except SummaryRefused as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="The model declined to summarize this record",
         ) from exc
     except SummaryConfigurationError as exc:
